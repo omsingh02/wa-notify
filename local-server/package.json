@@ -1,0 +1,20 @@
+{
+  "name": "wa-notify-local-server",
+  "version": "0.2.0",
+  "description": "Local ingestion server for the wa-notify browser extension: stores captured WhatsApp Web messages in SQLite (hobby project).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test \"test/*.test.js\"",
+    "check": "node --check server.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omsingh02/wa-notify.git"
+  },
+  "license": "MIT",
+  "private": true
+}
