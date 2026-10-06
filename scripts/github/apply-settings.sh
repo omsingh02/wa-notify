@@ -38,9 +38,8 @@ step "private vulnerability reporting"      gh api -X PUT "$R/private-vulnerabil
 step "secret scanning + push protection" \
   gh api -X PATCH "$R" -f 'security_and_analysis[secret_scanning][status]=enabled' \
                        -f 'security_and_analysis[secret_scanning_push_protection][status]=enabled'
-step "CodeQL default setup (JS/TS, Python, Actions)" \
-  gh api -X PATCH "$R/code-scanning/default-setup" -f state=configured -f query_suite=default \
-    -f 'languages[]=javascript-typescript' -f 'languages[]=python' -f 'languages[]=actions'
+# CodeQL runs from .github/workflows/codeql-advanced.yml. Do NOT also enable "default setup": GitHub rejects SARIF
+# uploads from a workflow while default setup is on. (The workflow skips itself while the repository is private.)
 
 echo "== Actions =="
 step "default GITHUB_TOKEN is read-only; Actions cannot approve PRs" \

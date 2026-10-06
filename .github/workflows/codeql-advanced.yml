@@ -9,6 +9,7 @@ on:
     branches: [main]
   schedule:
     - cron: "41 3 * * 2"
+  workflow_dispatch:
 
 permissions:
   contents: read

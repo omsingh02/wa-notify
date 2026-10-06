@@ -5,6 +5,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 
+### Added
+- Extension: on install/update a fresh relay is attached to the WhatsApp Web tabs that are already open, so reloading the extension no longer needs a tab refresh to keep capturing (new `scripting` permission).
+- `wa-reel-dl` and `wa-reel-summary` accept `--help`; flags may come before the reel id.
+- Landing page: Vercel Git deploys from `main` (Root Directory `site`, builds skipped when `site/` did not change).
+
+### Fixed
+- Extension: an orphaned content script ("Extension context invalidated") stops with one warning instead of throwing on every message.
+- `[instagram] profile` accepts `~` (yt-dlp does not expand it).
+- Docs: removed figures taken from the author's private archive.
+
 ### Changed
 - CI enforces `ruff format --check .` in addition to `ruff check .`; the Node tests run as `node --test "extension/test/*.test.js" "local-server/test/*.test.js"` (Node 22 rejects directory arguments).
 - Documentation re-verified against the code: limitations tables, configuration, architecture and known issues now name the real files, constants and tests.

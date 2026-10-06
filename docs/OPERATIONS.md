@@ -29,7 +29,7 @@ git pull
 systemctl --user restart wa-notify-server.service wa-reel-alert.service
 ```
 
-* **Reload the extension** in `chrome://extensions` and refresh the WhatsApp Web tab; the service worker and content scripts are not hot-reloaded.
+* **Reload the extension** in `chrome://extensions`. Open WhatsApp Web tabs then get a fresh relay automatically (the extension re-attaches on install/update), so capture continues without a refresh. **The first upgrade from a version before that change still leaves the old script running in the tab: refresh the tab once.** `injected.js` (the page hook) is only replaced when the tab is refreshed. An orphaned copy logs `The extension was reloaded or updated …` once and stops; older versions threw `Extension context invalidated` on every message and captured nothing until the tab was refreshed.
 * The Python menu/digest are started fresh on each use and pick up changes immediately.
 * After installing `python-secretstorage` (or any Python package yt-dlp probes at import time) **restart the alert daemon**; yt-dlp caches the "module missing" result per process.
 
@@ -74,7 +74,7 @@ default-timeout=12000
 format=<b>%s</b>\n%b
 ```
 
-mako config values are single-line: write the newline inside `format=` as the two characters `\n` (the version in `deploy/mako/wa-reels.conf` also writes a literal `%` as `%%`). Clicking a notification to play needs `on-button-left=invoke-default-action`; `deploy/mako/wa-reels.conf` sets it explicitly (whether it is also mako's built-in default was not checked).
+mako config values are single-line: write the newline inside `format=` as the two characters `\n` (the version in `deploy/mako/wa-reels.conf` also writes a literal `%` as `%%`). Clicking a notification to play needs `on-button-left=invoke-default-action`; `deploy/mako/wa-reels.conf` sets it explicitly (it is also mako's built-in default, per mako(5), so the line only documents the dependency). mako(5) also confirms the single-line `key=value` format, `\n` as the newline escape inside `format`, and `%%` as a literal percent.
 
 ## Logs
 
@@ -127,6 +127,7 @@ a working page with a broken one.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
+| Console / extension Errors page: `Extension context invalidated` or `The extension was reloaded or updated` | the tab still runs a script from before the last extension reload; nothing is captured from it | refresh that WhatsApp Web tab (once) |
 | No capture, console says it gave up after ~120 s | WhatsApp changed its internal module names | `window.__waNotifyDebug()` in the WhatsApp tab; adjust `WELL_KNOWN_MODULES` in `injected.js`; reload the extension |
 | Server returns `401` / extension queue grows | token mismatch (reinstalled extension, second browser profile) | delete `~/.config/wa-notify/token.txt`, restart nothing, reload the extension; the next request re-pairs |
 | Reels open in the browser, journal shows `blocking downloads` | Instagram rate-limits anonymous access (`login page … exceeded the rate-limit`) | wait (the queue retries itself), or configure `[instagram]`; see README |
