@@ -99,8 +99,16 @@ Sender names appear in the log under `LIVE REEL DETECTED`; scrub before sharing 
 `site/` is a static, dependency-free page (no build step, no scripts). It is hosted on Vercel.
 
 **Git deploys.** The Vercel project is connected to this repository with the production branch `main` and *Root Directory*
-`site`. A push to `main` deploys the page to production; other branches and pull requests get preview deployments, which
-Vercel Authentication protects while the repository is private. Nothing in the extension, server or tools talks to the page.
+`site`. A push to `main` that changes `site/` deploys the page to production; other branches and pull requests get preview
+deployments, which sit behind Vercel Authentication (project setting "all deployments except custom domains"), so only the
+owner can open them; the production URL is public. Nothing in the extension, server or tools talks to the page.
+
+**Skipping deploys.** `site/vercel.json` sets `ignoreCommand`, which cancels the build when the commit leaves `site/`
+unchanged since the last successful deployment of that branch. Vercel's built-in "skip unaffected projects" does not apply
+here: it needs npm/yarn/pnpm/Bun workspaces, and this repository has none. The command builds whenever it is unsure (first
+deployment of a branch, a redeploy, a previous commit that is missing from Vercel's shallow clone or was rewritten away),
+because skipping by mistake would freeze the page; `tests/test_vercel_ignore.py` pins those cases. A skipped deployment
+shows up as *Canceled* and still counts towards Vercel's deployment quota.
 
 **CLI deploys** work too, but because the Root Directory is `site` they must run from the **repository root**. From `site/`
 Vercel fails with `The specified Root Directory "site" does not exist`.
