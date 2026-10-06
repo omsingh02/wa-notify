@@ -11,6 +11,8 @@
 | `WA_NOTIFY_CONFIG_DIR` | `~/.config/wa-notify` | server, tools | `token.txt`, `config.toml`, `instagram-cookies.txt`. |
 | `WA_NOTIFY_EXTENSION_ID` | unset | server | Chrome extension id allowed in CORS (`chrome-extension://<id>`). Unpacked ids depend on the folder path. Optional — the extension works without it. |
 | `WA_NOTIFY_JSONL_BACKUP` | `1` | server | `0` disables the flat-file backup. The backup only appends newly inserted messages. |
+| `WA_NOTIFY_BUSY_TIMEOUT_MS` | `5000` | server | How long SQLite waits on a lock held by another process (the Python tools write to the same database). |
+| `WA_NOTIFY_DEBUG` | unset | server | `1` logs every request (off by default: one line per batch is noisy in the journal). |
 | `GEMINI_API_KEY_REELS` / `GEMINI_API_KEY` | unset | `wa_reel_ai.py` | API key for summaries (first one set wins; `*_REELS` preferred). |
 | `XDG_RUNTIME_DIR` | set by the session | `wa_reel_dl.py` | Where per-reel lock files live (`$XDG_RUNTIME_DIR/wa-notify/locks`), falling back to `reels/.locks`. |
 | `PYTHONUNBUFFERED=1` | — | systemd unit | Makes the daemon's log lines appear in the journal immediately. |
