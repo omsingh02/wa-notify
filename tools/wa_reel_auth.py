@@ -15,7 +15,7 @@ Nothing here logs in. It re-uses the session cookies the browser already holds:
 
     [instagram]
     browser = "brave"
-    profile = "/home/you/.config/BraveSoftware/Brave-Origin/Default"
+    profile = "~/.config/BraveSoftware/Brave-Origin/Default"
     keyring = "GNOMEKEYRING"     # Chromium-based browsers on Linux; needs the python-secretstorage package
     refresh_hours = 6
 
@@ -122,7 +122,8 @@ def _read_from_browser(cfg):
     kwargs = {}
     if cfg.get("keyring"):
         kwargs["keyring"] = str(cfg["keyring"]).upper()
-    jar = extract_cookies_from_browser(str(cfg["browser"]), profile=cfg.get("profile") or None, logger=log, **kwargs)
+    profile = os.path.expanduser(str(cfg["profile"])) if cfg.get("profile") else None  # yt-dlp does not expand "~"
+    jar = extract_cookies_from_browser(str(cfg["browser"]), profile=profile, logger=log, **kwargs)
 
     ig = [c for c in jar if (c.domain or "").lstrip(".").lower().endswith("instagram.com")]
     if not any(c.name == "sessionid" and c.value for c in ig):

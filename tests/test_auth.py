@@ -218,3 +218,24 @@ def test_auth_session_cache_and_check(tools, sandbox, check, monkeypatch):
     check("--check output still never leaks the value", "SECRETSESSIONVALUE" not in "\n".join(out))
 
     check.assert_all()
+
+
+def test_profile_tilde_is_expanded(sandbox, tools, monkeypatch):
+    """yt-dlp does not expand "~" in a browser profile path, so the tool has to."""
+    import pytest
+
+    ytc = pytest.importorskip("yt_dlp.cookies")
+    seen = {}
+
+    def fake_extract(browser, profile=None, logger=None, **kwargs):
+        seen["profile"] = profile
+        return ytc.YoutubeDLCookieJar()  # no session cookie: _read_from_browser raises after the call
+
+    monkeypatch.setattr(ytc, "extract_cookies_from_browser", fake_extract)
+    with pytest.raises(RuntimeError):
+        tools.auth._read_from_browser({"browser": "brave", "profile": "~/profiles/Default"})
+    assert seen["profile"] == str(sandbox.home / "profiles" / "Default")
+
+    with pytest.raises(RuntimeError):
+        tools.auth._read_from_browser({"browser": "brave"})
+    assert seen["profile"] is None, "no profile configured: let yt-dlp pick the browser's default"

@@ -481,6 +481,15 @@ def test_play_in_mpv_launches(tools, sandbox, check, H):
     PORT = int(os.environ["IMG_PORT"])
     env = dict(os.environ)
 
+    # Self-contained: create the cached media this test plays. Earlier tests use the same ids, so in a full
+    # run this is a no-op (fetch_media returns the cached files without calling yt-dlp).
+    mode("ok")
+    add("VIDEOANON01")
+    quiet(dl.fetch_media, "VIDEOANON01", timeout=20)
+    mode("carousel")
+    add("CAROUSEL001", "p")
+    quiet(dl.fetch_media, "https://www.instagram.com/p/CAROUSEL001", timeout=20)
+
     print("--- play_in_mpv: what actually gets launched ---")
     MPV = [
         "mpv",

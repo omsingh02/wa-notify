@@ -28,6 +28,6 @@ clip_seconds = 90                  # ...and cut to this length
 # Optional: reuse the browser's Instagram login so yt-dlp isn't rate-limited (see wa_reel_auth.py).
 # [instagram]
 # browser = "brave"
-# profile = "~/.config/BraveSoftware/Brave-Origin/Default"   # profile directory; use an absolute path
+# profile = "~/.config/BraveSoftware/Brave-Origin/Default"   # profile directory; "~" is expanded
 # keyring = "GNOMEKEYRING"         # Chromium-based browsers on Linux; needs the python-secretstorage package
 # refresh_hours = 6

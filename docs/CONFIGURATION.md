@@ -6,14 +6,14 @@
 
 | Variable | Default | Used by | Meaning |
 |---|---|---|---|
-| `WA_NOTIFY_PORT` | `8765` | server | Loopback port. **The extension has it hard-coded** (`ENDPOINT` in `extension/src/background.js` and `host_permissions` in `manifest.json`): change those too. |
+| `WA_NOTIFY_PORT` | `8765` | server | Loopback port (the bind address `127.0.0.1` is fixed). The **extension defaults to 8765** (`DEFAULT_ENDPOINT` in `extension/src/background.js`): to use another port, store the full URL (e.g. `http://127.0.0.1:9000/log`) under the `chrome.storage.local` key `wa_notify_endpoint`, for example from the service worker's devtools console. The manifest's `127.0.0.1` / `localhost` host permissions have no port, so no manifest change is needed for another loopback port. |
 | `WA_NOTIFY_DATA_DIR` | `~/.local/share/wa-notify` | server, tools | `wa-notify.db`, `chat_archive.jsonl`, `reels/`, `summaries/`. |
 | `WA_NOTIFY_CONFIG_DIR` | `~/.config/wa-notify` | server, tools | `token.txt`, `config.toml`, `instagram-cookies.txt`. |
 | `WA_NOTIFY_EXTENSION_ID` | unset | server | Chrome extension id allowed in CORS (`chrome-extension://<id>`). Unpacked ids depend on the folder path. Optional — the extension works without it. |
 | `WA_NOTIFY_JSONL_BACKUP` | `1` | server | `0` disables the flat-file backup. The backup only appends newly inserted messages. |
 | `WA_NOTIFY_BUSY_TIMEOUT_MS` | `5000` | server | How long SQLite waits on a lock held by another process (the Python tools write to the same database). |
 | `WA_NOTIFY_DEBUG` | unset | server | `1` logs every request (off by default: one line per batch is noisy in the journal). |
-| `GEMINI_API_KEY_REELS` / `GEMINI_API_KEY` | unset | `wa_reel_ai.py` | API key for summaries (first one set wins; `*_REELS` preferred). |
+| `GEMINI_API_KEY_REELS` / `GEMINI_API_KEY` | unset | `wa_reel_ai.py` | API key for summaries. The environment is checked first, then the secrets file; within each, `*_REELS` is preferred. |
 | `XDG_RUNTIME_DIR` | set by the session | `wa_reel_dl.py` | Where per-reel lock files live (`$XDG_RUNTIME_DIR/wa-notify/locks`), falling back to `reels/.locks`. |
 | `PYTHONUNBUFFERED=1` | — | systemd unit | Makes the daemon's log lines appear in the journal immediately. |
 
@@ -24,7 +24,7 @@ Location: `$WA_NOTIFY_CONFIG_DIR/config.toml` (default `~/.config/wa-notify/conf
 ```toml
 [instagram]                     # optional logged-in session, see "Instagram session" in the README
 browser = "brave"               # any browser yt-dlp knows: brave, chrome, chromium, firefox, ...
-profile = "~/.config/BraveSoftware/Brave-Origin/Default"   # profile directory (or name); omit for the browser default
+profile = "~/.config/BraveSoftware/Brave-Origin/Default"   # profile directory ("~" is expanded) or a profile name; omit for the browser default
 keyring = "GNOMEKEYRING"        # Chromium on Linux: GNOMEKEYRING | KWALLET | KWALLET5 | KWALLET6 | BASICTEXT
 refresh_hours = 6               # how often the Instagram-only cookie copy is re-read
 
@@ -49,7 +49,8 @@ clip_seconds = 90               # downscaled clips are cut to this length
 Notes:
 
 * The `[instagram]` section is the only one that *changes behaviour*; the others only replace values that used to be hard-coded.
-* `profile` and `secrets_file` accept `~`.
+* `secrets_file` and `[instagram] profile` accept `~` (the tool expands it before handing the path to yt-dlp, which would not). Use a full profile directory path for browsers that keep their profiles outside the default location, such as Brave Origin; a bare profile name only works inside the browser's default directory.
+* A wrongly-typed `[ui]` / `[ai]` value, an unknown key or an unreadable file produces one warning on stderr and the default is used. On Python < 3.11 `config.toml` is ignored (no `tomllib`).
 * Model names are examples that were valid for the author; check Google's current list.
 * Delete `config.toml` (and `instagram-cookies.txt`) to return to anonymous access.
 
@@ -57,16 +58,16 @@ Notes:
 
 | Path | Created by | Mode | Contents |
 |---|---|---|---|
-| `$DATA/wa-notify.db` (+ `-wal`, `-shm`) | server | default | SQLite database (all captured messages — **sensitive**) |
-| `$DATA/chat_archive.jsonl` | server | default | optional flat backup (**sensitive**) |
+| `$DATA/wa-notify.db` (+ `-wal`, `-shm`) | server | `0600` (set best-effort at server start; the data dir is created `0700`) | SQLite database (all captured messages — **sensitive**) |
+| `$DATA/chat_archive.jsonl` | server | `0600` | optional flat backup (**sensitive**) |
 | `$DATA/reels/<id>.mp4` / `<id>_<n>.jpg\|webp\|png` | `wa_reel_dl.py` | default | cached media |
 | `$DATA/summaries/<id>.txt` | `wa_reel_ai.py` | default | cached summaries |
-| `$CONFIG/token.txt` | server (TOFU) | `0600` | shared secret between extension and server |
+| `$CONFIG/token.txt` | server (TOFU) | `0600` (config dir created `0700` if the server makes it) | shared secret between extension and server |
 | `$CONFIG/config.toml` | you | your choice | see above |
 | `$CONFIG/instagram-cookies.txt` | `wa_reel_auth.py` | `0600` | Instagram-only cookies (**credential**) |
 | `$CONFIG/.instagram-cookies.lock` | `wa_reel_auth.py` | `0600` | refresh lock |
 | `~/.config/.secrets` | you | `0600` recommended | `GEMINI_API_KEY_REELS=...` |
-| `$XDG_RUNTIME_DIR/wa-notify/locks/` | `wa_reel_dl.py` | default | per-reel lock files (tmpfs) |
+| `$XDG_RUNTIME_DIR/wa-notify/locks/<id>.lock` (fallback `$DATA/reels/.locks/`) | `wa_reel_dl.py` | `0600` | per-reel lock files (tmpfs) |
 | `~/.config/systemd/user/wa-*.service` / `.timer` | you (copy from `deploy/systemd/`) | | units |
 
 `$DATA` = `WA_NOTIFY_DATA_DIR`, `$CONFIG` = `WA_NOTIFY_CONFIG_DIR`.

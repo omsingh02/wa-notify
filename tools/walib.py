@@ -37,9 +37,6 @@ CONFIG_DIR = str(SETTINGS.config_dir)
 TOKEN_FILE = str(SETTINGS.token_file)
 SECRETS_FILE = str(SETTINGS.secrets_file)
 
-# Regex for Instagram Reels
-REEL_PATTERN = re.compile(r"https?://(?:www\.)?instagram\.com/(?:reel|reels|p)/[A-Za-z0-9_-]+", re.IGNORECASE)
-
 
 def get_db() -> sqlite3.Connection:
     """

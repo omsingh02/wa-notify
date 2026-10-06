@@ -5,7 +5,8 @@ Every test module gets its own sandbox: a temporary HOME / XDG_RUNTIME_DIR / dat
 (yt-dlp, mpv, notify-send, xdg-open, pkill, fuzzel) first on PATH, and freshly imported copies of the tools/
 modules (they read their paths from the environment at import time). Nothing outside the temp dir is touched.
 
-Tests inside one module may share state (a DB, cached files) and then rely on running in file order.
+Tests inside one module may share state (a DB, cached files), but every test creates what it needs, so any
+single test can be run alone, e.g. `pytest tests/test_flows.py::test_play_in_mpv_launches`.
 """
 
 from __future__ import annotations
