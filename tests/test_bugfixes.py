@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import email.message
 import io
-import os
 import json
+import os
 import subprocess
 import sys
 import urllib.error
 
 import pytest
+
 from conftest import load_script
 
 
@@ -23,8 +24,10 @@ def digest(tools):
 
 def add_reel(tools, rid, sender, summary, title=""):
     with tools.walib.get_db() as c:
-        c.execute("insert or replace into reels(reel_id,sender,url,title,timestamp,first_seen_at,summary) values(?,?,?,?,?,?,?)",
-                  (rid, sender, f"https://www.instagram.com/reel/{rid}", title, 1_700_000_000, 1_700_000_000_000, summary))
+        c.execute(
+            "insert or replace into reels(reel_id,sender,url,title,timestamp,first_seen_at,summary) values(?,?,?,?,?,?,?)",
+            (rid, sender, f"https://www.instagram.com/reel/{rid}", title, 1_700_000_000, 1_700_000_000_000, summary),
+        )
 
 
 def test_preview_survives_markup_in_sender_and_summary(tools, digest, capsys):
@@ -36,8 +39,17 @@ def test_preview_survives_markup_in_sender_and_summary(tools, digest, capsys):
 
 def test_table_survives_markup_too(tools, digest, capsys):
     add_reel(tools, "MARKUP000002", "Eve [/oops]", "text with [/INST] inside")
-    digest.print_rich_table([{"reel_id": "MARKUP000002", "sender": "Eve [/oops]", "summary": "text with [/INST] inside",
-                              "timestamp": 1_700_000_000}], "Reels")
+    digest.print_rich_table(
+        [
+            {
+                "reel_id": "MARKUP000002",
+                "sender": "Eve [/oops]",
+                "summary": "text with [/INST] inside",
+                "timestamp": 1_700_000_000,
+            }
+        ],
+        "Reels",
+    )
     out = capsys.readouterr().out
     assert "Eve [/oops]" in out and "[/INST]" in out
 
@@ -45,8 +57,15 @@ def test_table_survives_markup_too(tools, digest, capsys):
 # ---------------------------------------------------------------- digest: --float must never relaunch itself
 @pytest.mark.parametrize(
     ("argv", "expected_child"),
-    [(["-f"], []), (["-fa"], ["--all"]), (["-fn"], ["--notify"]), (["--fl"], []), (["--flo", "-a"], ["--all"]),
-     (["-f", "-l", "10"], ["--limit", "10"]), (["--float", "--opened", "--table"], ["--opened", "--table"])],
+    [
+        (["-f"], []),
+        (["-fa"], ["--all"]),
+        (["-fn"], ["--notify"]),
+        (["--fl"], []),
+        (["--flo", "-a"], ["--all"]),
+        (["-f", "-l", "10"], ["--limit", "10"]),
+        (["--float", "--opened", "--table"], ["--opened", "--table"]),
+    ],
 )
 def test_float_child_never_refloats(digest, monkeypatch, argv, expected_child):
     launched = []
@@ -54,7 +73,7 @@ def test_float_child_never_refloats(digest, monkeypatch, argv, expected_child):
     monkeypatch.setattr(sys, "argv", ["wa-reel-digest", *argv])
     digest.main()
     assert launched == [expected_child]
-    assert not any(a.startswith("-f") or a.startswith("--fl") for a in launched[0])
+    assert not any(a.startswith(("-f", "--fl")) for a in launched[0])
 
 
 def test_launch_floating_uses_terminal_then_fallback(digest, monkeypatch):
@@ -90,6 +109,7 @@ def fake_net(metered, wifi, ping_rc):
         if cmd[0] == "ping":
             return Result("", ping_rc)
         raise AssertionError(cmd)
+
     return run
 
 
@@ -115,6 +135,7 @@ def test_missing_nmcli_does_not_crash(alert, monkeypatch):
         if cmd[0] == "nmcli":
             raise FileNotFoundError("nmcli")
         return Result("", 0)
+
     monkeypatch.setattr(alert.subprocess, "run", run)
     assert alert.is_fast_network() is True
 

@@ -140,7 +140,9 @@ def tools(sandbox) -> SimpleNamespace:
     import walib
 
     walib.init_db()
-    return SimpleNamespace(settings=wa_settings, walib=walib, dl=wa_reel_dl, auth=wa_reel_auth, queue=wa_reel_queue, ai=wa_reel_ai)
+    return SimpleNamespace(
+        settings=wa_settings, walib=walib, dl=wa_reel_dl, auth=wa_reel_auth, queue=wa_reel_queue, ai=wa_reel_ai
+    )
 
 
 def load_script(name: str):

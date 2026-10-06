@@ -24,14 +24,26 @@ def test_daemon_alerts_queues_and_fetches(tools, sandbox):
         for rid, sender, live, alerted, opened, first_seen in rows:
             c.execute(
                 "insert into reels(reel_id,sender,url,timestamp,first_seen_at,is_likely_live,alerted,is_opened) values(?,?,?,?,?,?,?,?)",
-                (rid, sender, f"https://www.instagram.com/reel/{rid}", first_seen // 1000, first_seen, live, alerted, opened),
+                (
+                    rid,
+                    sender,
+                    f"https://www.instagram.com/reel/{rid}",
+                    first_seen // 1000,
+                    first_seen,
+                    live,
+                    alerted,
+                    opened,
+                ),
             )
     sandbox.set_mode("ok")
     sandbox.reset_log()
     env = {k: v for k, v in os.environ.items() if not k.startswith("GEMINI")}
     proc = subprocess.Popen(
         [sys.executable, str(sandbox.tools_dir / "wa-reel-alert.py"), "--download"],
-        env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
     )
     reels_dir = tools.walib.REELS_DIR
     deadline = time.time() + 30

@@ -21,16 +21,24 @@ TOOLS_DIR = os.path.dirname(os.path.realpath(__file__))
 if TOOLS_DIR not in sys.path:
     sys.path.insert(0, TOOLS_DIR)
 
-from walib import (  # noqa: E402
-    UI, get_db, get_unopened_reels, get_opened_reels, get_all_reels,
-    format_time, get_local_reel_file, play_in_mpv, copy_to_clipboard
-)
 from wa_reel_dl import download_reel  # noqa: E402
+from walib import (  # noqa: E402
+    UI,
+    copy_to_clipboard,
+    format_time,
+    get_all_reels,
+    get_db,
+    get_local_reel_file,
+    get_opened_reels,
+    get_unopened_reels,
+    play_in_mpv,
+)
 
 try:
     from rich.console import Console
     from rich.markup import escape
     from rich.table import Table
+
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
@@ -45,6 +53,7 @@ C_GREEN = "\033[32m"
 C_YELLOW = "\033[33m"
 C_WHITE = "\033[37m"
 
+
 def render_preview(reel_id: str):
     """Renders clean, substance-focused preview for the preview pane."""
     with get_db() as conn:
@@ -54,13 +63,13 @@ def render_preview(reel_id: str):
             return
         r = dict(row)
 
-    sender = r.get('sender') or 'Unknown'
-    ts = r.get('timestamp') or (r.get('first_seen_at', 0) // 1000)
+    sender = r.get("sender") or "Unknown"
+    ts = r.get("timestamp") or (r.get("first_seen_at", 0) // 1000)
     _, rel = format_time(ts)
     local_path = get_local_reel_file(reel_id)
 
     status = "[yellow]cached[/]" if local_path else "[dim]stream[/]"
-    summary = (r.get('summary') or r.get('title') or '(No summary available)').strip()
+    summary = (r.get("summary") or r.get("title") or "(No summary available)").strip()
 
     if HAS_RICH:
         console = Console(highlight=False)
@@ -71,10 +80,11 @@ def render_preview(reel_id: str):
         print(f"\n{sender} | {rel} | {'cached' if local_path else 'stream'}\n")
         print(f"{summary}\n")
 
+
 def print_rich_table(reels, title: str):
     """Prints a styled terminal table using Rich for non-interactive output."""
     console = Console()
-    max_sender_len = max(len(r.get('sender') or 'Unknown') for r in reels)
+    max_sender_len = max(len(r.get("sender") or "Unknown") for r in reels)
     sender_width = max(max_sender_len, 20)
 
     table = Table(title=title, show_header=True, header_style="bold cyan", border_style="dim")
@@ -85,14 +95,14 @@ def print_rich_table(reels, title: str):
     table.add_column("Summary / Title", style="white")
 
     for idx, r in enumerate(reels, 1):
-        sender = r.get('sender') or 'Unknown'
-        reel_id = r.get('reel_id') or ''
-        ts = r.get('timestamp') or (r.get('first_seen_at', 0) // 1000)
+        sender = r.get("sender") or "Unknown"
+        reel_id = r.get("reel_id") or ""
+        ts = r.get("timestamp") or (r.get("first_seen_at", 0) // 1000)
         _, rel = format_time(ts)
         local_path = get_local_reel_file(reel_id)
 
         status = "[yellow]cached[/]" if local_path else "[dim]stream[/]"
-        summary = (r.get('summary') or r.get('title') or '(No summary)').replace('\n', ' ')
+        summary = (r.get("summary") or r.get("title") or "(No summary)").replace("\n", " ")
         if len(summary) > 75:
             summary = summary[:72] + "..."
 
@@ -100,9 +110,11 @@ def print_rich_table(reels, title: str):
 
     console.print(table)
 
+
 def run_fzf_ui(reels, prompt_title: str):
     """Runs clean, fully responsive FZF interface with adaptive layout and zero icon clutter."""
     import shutil
+
     lines = []
     lookup = {}
 
@@ -111,18 +123,15 @@ def run_fzf_ui(reels, prompt_title: str):
     # Adaptive preview: In floating windows (1000x600) or zoomed terminals (<135 cols),
     # place preview at bottom so BOTH list and preview get 100% horizontal width (zero '..' cutoffs).
     # On wide/maximized screens (>=135 cols), place preview on right side.
-    if term_cols < 135:
-        preview_layout = "down:50%:border-top:wrap"
-    else:
-        preview_layout = "right:52%:border-left:wrap"
+    preview_layout = "down:50%:border-top:wrap" if term_cols < 135 else "right:52%:border-left:wrap"
 
-    max_sender_len = max(len(r.get('sender') or 'Unknown') for r in reels)
+    max_sender_len = max(len(r.get("sender") or "Unknown") for r in reels)
     sender_col_width = max(max_sender_len, 20) + 1
 
-    for idx, r in enumerate(reels, 1):
-        reel_id = r.get('reel_id') or ''
-        sender = (r.get('sender') or 'Unknown').strip()
-        ts = r.get('timestamp') or (r.get('first_seen_at', 0) // 1000)
+    for r in reels:
+        reel_id = r.get("reel_id") or ""
+        sender = (r.get("sender") or "Unknown").strip()
+        ts = r.get("timestamp") or (r.get("first_seen_at", 0) // 1000)
         _, rel = format_time(ts)
         local_path = get_local_reel_file(reel_id)
 
@@ -145,7 +154,8 @@ def run_fzf_ui(reels, prompt_title: str):
         "--ansi",
         "--delimiter=\t",
         "--with-nth=2..",
-        "--preview", f"{shlex.quote(sys.executable)} {shlex.quote(script_path)} --preview {{1}}",
+        "--preview",
+        f"{shlex.quote(sys.executable)} {shlex.quote(script_path)} --preview {{1}}",
         f"--preview-window={preview_layout}",
         "--bind=ctrl-w:change-preview-window(down,50%|right,52%|hidden)",
         "--bind=ctrl-/:toggle-preview",
@@ -161,18 +171,14 @@ def run_fzf_ui(reels, prompt_title: str):
         "--no-info",
         "--no-separator",
         "--no-scrollbar",
-        "--color=footer:dim,prompt:bold:cyan,pointer:bold:cyan,hl:yellow,hl+:bright-yellow,bg+:-1,fg+:bold:white"
+        "--color=footer:dim,prompt:bold:cyan,pointer:bold:cyan,hl:yellow,hl+:bright-yellow,bg+:-1,fg+:bold:white",
     ]
 
     while True:
         try:
             try:
                 proc = subprocess.Popen(
-                    fzf_cmd,
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,
-                    text=True
+                    fzf_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
                 )
             except FileNotFoundError:
                 print("[!] fzf is not installed — use --table for plain output", file=sys.stderr)
@@ -193,25 +199,42 @@ def run_fzf_ui(reels, prompt_title: str):
                 break
 
             selected_reel = lookup[selected_reel_id]
-            url = selected_reel.get('url') or f"https://www.instagram.com/reel/{selected_reel_id}"
+            url = selected_reel.get("url") or f"https://www.instagram.com/reel/{selected_reel_id}"
 
             if key_pressed == "ctrl-o":
                 print(f"[*] Opening in browser: {url}")
-                subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+                subprocess.Popen(
+                    ["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True
+                )
             elif key_pressed == "ctrl-y":
                 copy_to_clipboard(url)
                 print(f"[*] Copied to clipboard: {url}")
-                subprocess.run(["notify-send", "-a", UI.notify_app_name, "-i", "instagram", "-u", "low", "Link Copied", url], check=False)
+                subprocess.run(
+                    ["notify-send", "-a", UI.notify_app_name, "-i", "instagram", "-u", "low", "Link Copied", url],
+                    check=False,
+                )
             elif key_pressed == "ctrl-d":
                 print(f"[*] Downloading {selected_reel_id}...")
                 success, path = download_reel(selected_reel_id, quiet=False)
                 if success:
-                    subprocess.run(["notify-send", "-a", UI.notify_app_name, "-i", "instagram", "Download Complete", f"Saved {selected_reel_id}"], check=False)
+                    subprocess.run(
+                        [
+                            "notify-send",
+                            "-a",
+                            UI.notify_app_name,
+                            "-i",
+                            "instagram",
+                            "Download Complete",
+                            f"Saved {selected_reel_id}",
+                        ],
+                        check=False,
+                    )
             else:  # default or enter
                 play_in_mpv(selected_reel_id, url)
                 break
         except (KeyboardInterrupt, EOFError):
             break
+
 
 def child_argv(args: argparse.Namespace) -> list[str]:
     """
@@ -247,7 +270,9 @@ def main() -> None:
     parser.add_argument("-a", "--all", action="store_true", help="Show all reels (opened and unopened)")
     parser.add_argument("-o", "--opened", action="store_true", help="Show already opened/watched reels history")
     parser.add_argument("-f", "--float", action="store_true", help="Launch in centered floating window (1000x600)")
-    parser.add_argument("-t", "--table", action="store_true", help="Force static table output instead of interactive FZF")
+    parser.add_argument(
+        "-t", "--table", action="store_true", help="Force static table output instead of interactive FZF"
+    )
     parser.add_argument("-n", "--notify", action="store_true", help="Send desktop notification summary")
     parser.add_argument("-l", "--limit", type=int, default=DEFAULT_LIMIT, help="Maximum number of reels to display")
     parser.add_argument("--preview", type=str, metavar="REEL_ID", help=argparse.SUPPRESS)
@@ -278,24 +303,32 @@ def main() -> None:
 
     if not reels:
         if args.notify:
-            subprocess.run([
-                "notify-send", "-a", UI.notify_app_name, "-i", "instagram",
-                "Reels Digest", "No reels found."
-            ], check=False)
+            subprocess.run(
+                ["notify-send", "-a", UI.notify_app_name, "-i", "instagram", "Reels Digest", "No reels found."],
+                check=False,
+            )
         else:
             print("\nNo reels found in database.")
         return
 
     if args.notify:
         for r in reels[:5]:
-            sender = r.get('sender') or 'Unknown'
-            summary = r.get('summary') or r.get('title') or '(No summary)'
-            ts = r.get('timestamp') or 0
+            sender = r.get("sender") or "Unknown"
+            summary = r.get("summary") or r.get("title") or "(No summary)"
+            ts = r.get("timestamp") or 0
             time_str, _ = format_time(ts)
-            subprocess.run([
-                "notify-send", "-a", UI.notify_app_name, "-i", "instagram",
-                f"Reel from {sender} ({time_str})", summary
-            ], check=False)
+            subprocess.run(
+                [
+                    "notify-send",
+                    "-a",
+                    UI.notify_app_name,
+                    "-i",
+                    "instagram",
+                    f"Reel from {sender} ({time_str})",
+                    summary,
+                ],
+                check=False,
+            )
         return
 
     # If user wants table or stdout is piped, print table
@@ -304,13 +337,14 @@ def main() -> None:
             print_rich_table(reels, title)
         else:
             for idx, r in enumerate(reels, 1):
-                sender = r.get('sender') or 'Unknown'
-                summary = r.get('summary') or r.get('title') or '(No summary)'
+                sender = r.get("sender") or "Unknown"
+                summary = r.get("summary") or r.get("title") or "(No summary)"
                 print(f"[{idx}] {sender}: {summary}")
         return
 
     # Interactive FZF UI
     run_fzf_ui(reels, title)
+
 
 if __name__ == "__main__":
     main()

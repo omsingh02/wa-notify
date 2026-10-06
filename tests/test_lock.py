@@ -22,7 +22,9 @@ HOLDER = textwrap.dedent(
 
 def start_holder(sandbox) -> subprocess.Popen:
     """A separate process that holds the lock on LOCKTEST for ~2 s."""
-    proc = subprocess.Popen([sys.executable, "-c", HOLDER.format(tools=str(sandbox.tools_dir))], stdout=subprocess.PIPE, text=True)
+    proc = subprocess.Popen(
+        [sys.executable, "-c", HOLDER.format(tools=str(sandbox.tools_dir))], stdout=subprocess.PIPE, text=True
+    )
     proc.stdout.readline()  # wait until it really holds the lock
     return proc
 

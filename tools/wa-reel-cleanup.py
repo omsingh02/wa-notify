@@ -6,19 +6,20 @@ more than 7 days ago, preventing unbounded disk growth. Also removes abandoned d
 leftovers (.part / .ytdl / yt-dlp's .fdash-* intermediates) a few days after their last write.
 """
 
+import argparse
 import os
 import sys
 import time
-import argparse
 
 TOOLS_DIR = os.path.dirname(os.path.realpath(__file__))
 if TOOLS_DIR not in sys.path:
     sys.path.insert(0, TOOLS_DIR)
 
-from walib import get_db, reel_media_files, REELS_DIR
+from walib import REELS_DIR, get_db, reel_media_files
 
 DEFAULT_RETENTION_DAYS = 7
 STALE_PARTIAL_DAYS = 3
+
 
 def cleanup(retention_days=DEFAULT_RETENTION_DAYS, dry_run=False):
     cutoff_ts = int(time.time()) - (retention_days * 86400)
@@ -27,7 +28,7 @@ def cleanup(retention_days=DEFAULT_RETENTION_DAYS, dry_run=False):
     reclaimed_bytes = 0
     deleted_count = 0
     reset_ids = []
-    handled = set()   # files already dealt with (or listed, in a dry run) as part of an opened reel
+    handled = set()  # files already dealt with (or listed, in a dry run) as part of an opened reel
 
     with get_db() as conn:
         rows = conn.execute(
@@ -36,14 +37,14 @@ def cleanup(retention_days=DEFAULT_RETENTION_DAYS, dry_run=False):
             FROM reels
             WHERE is_opened = 1 AND opened_at IS NOT NULL AND opened_at < ?
             """,
-            (cutoff_ts,)
+            (cutoff_ts,),
         ).fetchall()
 
     # File work happens outside any database transaction so the Node server's inserts are never blocked by it.
     for row in rows:
-        reel_id = row['reel_id']
-        files = reel_media_files(reel_id)   # the video, a photo post's images, download leftovers
-        path = row['local_path']
+        reel_id = row["reel_id"]
+        files = reel_media_files(reel_id)  # the video, a photo post's images, download leftovers
+        path = row["local_path"]
         if path and os.path.exists(path) and path not in files:
             files.append(path)
         if not files:
@@ -72,10 +73,7 @@ def cleanup(retention_days=DEFAULT_RETENTION_DAYS, dry_run=False):
 
     if reset_ids:
         with get_db() as conn:
-            conn.executemany(
-                "UPDATE reels SET is_downloaded = 0, local_path = NULL WHERE reel_id = ?",
-                reset_ids
-            )
+            conn.executemany("UPDATE reels SET is_downloaded = 0, local_path = NULL WHERE reel_id = ?", reset_ids)
 
     stale_count, stale_bytes = sweep_stale_partials(dry_run=dry_run, skip=handled)
     deleted_count += stale_count
@@ -84,7 +82,10 @@ def cleanup(retention_days=DEFAULT_RETENTION_DAYS, dry_run=False):
     if dry_run:
         print("[*] Dry run complete.")
     else:
-        print(f"[✓] Cleanup complete: Removed {deleted_count} file(s), reclaimed {reclaimed_bytes / 1024 / 1024:.1f} MB.")
+        print(
+            f"[✓] Cleanup complete: Removed {deleted_count} file(s), reclaimed {reclaimed_bytes / 1024 / 1024:.1f} MB."
+        )
+
 
 def sweep_stale_partials(dry_run=False, skip=()):
     """Remove abandoned download leftovers that haven't been written to for STALE_PARTIAL_DAYS days."""
@@ -95,7 +96,7 @@ def sweep_stale_partials(dry_run=False, skip=()):
     except OSError:
         return 0, 0
     for name in names:
-        if not (name.endswith(('.part', '.ytdl')) or '.fdash-' in name or '.temp.' in name):
+        if not (name.endswith((".part", ".ytdl")) or ".fdash-" in name or ".temp." in name):
             continue
         path = os.path.join(REELS_DIR, name)
         if path in skip:
@@ -118,13 +119,17 @@ def sweep_stale_partials(dry_run=False, skip=()):
             print(f"  [!] Failed removing {path}: {e}")
     return count, freed
 
+
 def main():
     parser = argparse.ArgumentParser(description="wa-notify Video Cache Retention Cleaner")
-    parser.add_argument("--days", type=int, default=DEFAULT_RETENTION_DAYS, help="Delete opened videos older than N days (default 7)")
+    parser.add_argument(
+        "--days", type=int, default=DEFAULT_RETENTION_DAYS, help="Delete opened videos older than N days (default 7)"
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print actions without deleting files")
     args = parser.parse_args()
 
     cleanup(retention_days=args.days, dry_run=args.dry_run)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

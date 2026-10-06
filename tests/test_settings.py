@@ -12,12 +12,22 @@ def make_env(tmp_path: Path, toml: str | None = None, **extra: str) -> dict[str,
     cfg.mkdir(exist_ok=True)
     if toml is not None:
         (cfg / "config.toml").write_text(toml)
-    return {"HOME": str(tmp_path), "WA_NOTIFY_CONFIG_DIR": str(cfg), "WA_NOTIFY_DATA_DIR": str(tmp_path / "data"), **extra}
+    return {
+        "HOME": str(tmp_path),
+        "WA_NOTIFY_CONFIG_DIR": str(cfg),
+        "WA_NOTIFY_DATA_DIR": str(tmp_path / "data"),
+        **extra,
+    }
 
 
 def test_defaults_match_the_original_hard_coded_values(tools, tmp_path):
     s = tools.settings.load(make_env(tmp_path))
-    assert (s.ui.app_id, s.ui.player_size, s.ui.launcher, s.ui.notify_app_name) == ("wa-reel", "420x750", "fuzzel", "wa-reels")
+    assert (s.ui.app_id, s.ui.player_size, s.ui.launcher, s.ui.notify_app_name) == (
+        "wa-reel",
+        "420x750",
+        "fuzzel",
+        "wa-reels",
+    )
     assert s.ui.launcher_font == "JetBrains Mono NF:size=12"
     assert (s.ui.launcher_width, s.ui.launcher_max_lines) == (125, 14)
     assert s.ui.terminal == ("footclient", "-a", "wa-reel-digest")
@@ -65,7 +75,11 @@ def test_wrongly_typed_values_fall_back_with_one_warning(tools, tmp_path, capsys
     s = tools.settings.load(make_env(tmp_path, toml))
     tools.settings.load(make_env(tmp_path, toml))  # second load must not repeat the warnings
     err = capsys.readouterr().err
-    assert s.ui.launcher_width == 125 and s.ui.terminal == ("footclient", "-a", "wa-reel-digest") and s.ai.models[0] == "gemini-3.5-flash"
+    assert (
+        s.ui.launcher_width == 125
+        and s.ui.terminal == ("footclient", "-a", "wa-reel-digest")
+        and s.ai.models[0] == "gemini-3.5-flash"
+    )
     assert err.count("launcher_width") == 1 and err.count("unknown key [ui] unknown_key") == 1
 
 
@@ -84,8 +98,8 @@ def test_missing_config_file_is_silent(tools, tmp_path, capsys):
 def test_walib_exports_are_derived_from_settings(tools):
     w = tools.walib
     assert w.MPV_BASE[1:3] == [f"--wayland-app-id={w.UI.app_id}", f"--title={w.UI.app_id}"]
-    assert w.DB_PATH == str(w.SETTINGS.db_path) and w.REELS_DIR == str(w.SETTINGS.reels_dir)
-    assert w.TOKEN_FILE.endswith("token.txt") and w.CONFIG_DIR == str(w.SETTINGS.config_dir)
+    assert str(w.SETTINGS.db_path) == w.DB_PATH and str(w.SETTINGS.reels_dir) == w.REELS_DIR
+    assert w.TOKEN_FILE.endswith("token.txt") and str(w.SETTINGS.config_dir) == w.CONFIG_DIR
 
 
 @pytest.mark.parametrize("bad", ["", "   ", 0, -5, True])

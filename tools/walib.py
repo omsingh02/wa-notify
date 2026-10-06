@@ -9,6 +9,7 @@ Paths and desktop settings come from wa_settings (defaults, config.toml, WA_NOTI
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import sqlite3
@@ -37,7 +38,8 @@ TOKEN_FILE = str(SETTINGS.token_file)
 SECRETS_FILE = str(SETTINGS.secrets_file)
 
 # Regex for Instagram Reels
-REEL_PATTERN = re.compile(r'https?://(?:www\.)?instagram\.com/(?:reel|reels|p)/[A-Za-z0-9_-]+', re.IGNORECASE)
+REEL_PATTERN = re.compile(r"https?://(?:www\.)?instagram\.com/(?:reel|reels|p)/[A-Za-z0-9_-]+", re.IGNORECASE)
+
 
 def get_db() -> sqlite3.Connection:
     """
@@ -51,6 +53,7 @@ def get_db() -> sqlite3.Connection:
     conn.execute("PRAGMA busy_timeout = 5000;")
     conn.execute("PRAGMA synchronous = NORMAL;")
     return conn
+
 
 def init_db() -> None:
     """Initializes tables and indexes if they do not exist."""
@@ -96,21 +99,25 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_messages_ts ON messages (message_ts DESC);
         """)
 
+
 def get_reel_id(url: str) -> str:
     """Extracts clean Instagram Reel/Post ID from any URL."""
-    clean = url.split('?')[0].rstrip('/')
-    return clean.split('/')[-1] if '/' in clean else clean
+    clean = url.split("?")[0].rstrip("/")
+    return clean.split("/")[-1] if "/" in clean else clean
+
 
 def get_local_reel_file(reel_id_or_url: str) -> str | None:
     """Returns local path to downloaded video if exists and non-empty."""
     reel_id = get_reel_id(reel_id_or_url)
-    for ext in ('.mp4', '.mkv', '.webm'):
+    for ext in (".mp4", ".mkv", ".webm"):
         p = os.path.join(REELS_DIR, f"{reel_id}{ext}")
         if os.path.exists(p) and os.path.getsize(p) > 10000:
             return p
     return None
 
-IMAGE_EXTS = ('.jpg', '.jpeg', '.png', '.webp')
+
+IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp")
+
 
 def get_local_images(reel_id_or_url: str) -> list[str]:
     """Local images of a photo post in carousel order (<id>_1.jpg, <id>_2.jpg, ...). Empty list if none."""
@@ -127,6 +134,7 @@ def get_local_images(reel_id_or_url: str) -> list[str]:
             return found
         n += 1
 
+
 def reel_media_files(reel_id: str) -> list[str]:
     """Every cached file that belongs to a reel: its video, a photo post's images and download leftovers."""
     pattern = re.compile(rf"^{re.escape(reel_id)}(?:\.[^/]+|_\d+\.(?:jpe?g|png|webp))$")
@@ -136,15 +144,14 @@ def reel_media_files(reel_id: str) -> list[str]:
         return []
     return sorted(os.path.join(REELS_DIR, n) for n in names if pattern.match(n))
 
+
 def mark_as_opened(reel_id_or_url: str) -> None:
     """Marks a single reel as opened in SQLite."""
     reel_id = get_reel_id(reel_id_or_url)
     now = int(datetime.now().timestamp())
     with get_db() as conn:
-        conn.execute(
-            "UPDATE reels SET is_opened = 1, opened_at = ? WHERE reel_id = ?",
-            (now, reel_id)
-        )
+        conn.execute("UPDATE reels SET is_opened = 1, opened_at = ? WHERE reel_id = ?", (now, reel_id))
+
 
 def mark_opened_many(reel_ids: Iterable[str]) -> int:
     """Marks exactly these reels as opened (not every unopened one, so reels that arrived since are untouched)."""
@@ -156,40 +163,36 @@ def mark_opened_many(reel_ids: Iterable[str]) -> int:
         conn.executemany("UPDATE reels SET is_opened = 1, opened_at = ? WHERE reel_id = ?", [(now, i) for i in ids])
     return len(ids)
 
+
 def mark_all_as_opened() -> None:
     """Marks all unopened reels as opened in SQLite (prefer mark_opened_many for a listed set)."""
     now = int(datetime.now().timestamp())
     with get_db() as conn:
-        conn.execute(
-            "UPDATE reels SET is_opened = 1, opened_at = ? WHERE is_opened = 0",
-            (now,)
-        )
+        conn.execute("UPDATE reels SET is_opened = 1, opened_at = ? WHERE is_opened = 0", (now,))
+
 
 def get_unopened_reels() -> list[dict]:
     """Returns list of unopened reels from SQLite ordered by newest first."""
     with get_db() as conn:
-        rows = conn.execute(
-            "SELECT * FROM reels WHERE is_opened = 0 ORDER BY timestamp DESC"
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM reels WHERE is_opened = 0 ORDER BY timestamp DESC").fetchall()
         return [dict(r) for r in rows]
+
 
 def get_opened_reels(limit: int = 50) -> list[dict]:
     """Returns list of already opened reels from SQLite ordered by newest timestamp first."""
     with get_db() as conn:
         rows = conn.execute(
-            "SELECT * FROM reels WHERE is_opened = 1 ORDER BY timestamp DESC LIMIT ?",
-            (limit,)
+            "SELECT * FROM reels WHERE is_opened = 1 ORDER BY timestamp DESC LIMIT ?", (limit,)
         ).fetchall()
         return [dict(r) for r in rows]
+
 
 def get_all_reels(limit: int = 50) -> list[dict]:
     """Returns list of all reels from SQLite ordered by newest first."""
     with get_db() as conn:
-        rows = conn.execute(
-            "SELECT * FROM reels ORDER BY timestamp DESC LIMIT ?",
-            (limit,)
-        ).fetchall()
+        rows = conn.execute("SELECT * FROM reels ORDER BY timestamp DESC LIMIT ?", (limit,)).fetchall()
         return [dict(r) for r in rows]
+
 
 # One floating, pinned window for everything (compositor rules match the class/title, ui.app_id).
 MPV_BASE = [
@@ -213,15 +216,30 @@ FETCH_FAILURE_TEXT = {
     "no_ytdlp": "yt-dlp is not installed",
 }
 
+
 def _notify(summary: str, body: str = "", timeout_ms: int = 6000) -> None:
     """Best-effort low-urgency desktop notification; never raises."""
-    try:
+    with contextlib.suppress(Exception):
         subprocess.run(
-            ["notify-send", "-a", UI.notify_app_name, "-i", "instagram", "-u", "low", "-t", str(timeout_ms), summary, body],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False, timeout=5
+            [
+                "notify-send",
+                "-a",
+                UI.notify_app_name,
+                "-i",
+                "instagram",
+                "-u",
+                "low",
+                "-t",
+                str(timeout_ms),
+                summary,
+                body,
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=5,
         )
-    except Exception:
-        pass
+
 
 def play_in_mpv(reel_id_or_url: str, fallback_url: str | None = None) -> subprocess.Popen | None:
     """
@@ -238,9 +256,12 @@ def play_in_mpv(reel_id_or_url: str, fallback_url: str | None = None) -> subproc
 
     if not video and not images:
         from wa_reel_dl import fetch_media
+
         print(f"[*] Reel {reel_id} not cached locally — fetching...")
         # only bother the user if the fetch turns out to take a while
-        slow = threading.Timer(2.0, _notify, args=("Fetching reel…", "It opens in the floating player as soon as it's downloaded"))
+        slow = threading.Timer(
+            2.0, _notify, args=("Fetching reel…", "It opens in the floating player as soon as it's downloaded")
+        )
         slow.daemon = True
         slow.start()
         try:
@@ -257,10 +278,8 @@ def play_in_mpv(reel_id_or_url: str, fallback_url: str | None = None) -> subproc
     mark_as_opened(reel_id)
 
     # Terminate previous floating reel MPV window to avoid stacking (after the fetch, so it keeps playing meanwhile)
-    try:
+    with contextlib.suppress(Exception):
         subprocess.run(["pkill", "-f", f"title={UI.app_id}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception:
-        pass
 
     if not video and not images:
         why = FETCH_FAILURE_TEXT.get(getattr(failure, "reason", None), "The download failed")
@@ -269,7 +288,9 @@ def play_in_mpv(reel_id_or_url: str, fallback_url: str | None = None) -> subproc
         print(f"[*] Opening in browser: {url}")
         _notify("Opening in browser", why, timeout_ms=8000)
         try:
-            subprocess.Popen(["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            subprocess.Popen(
+                ["xdg-open", url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True
+            )
         except Exception as e:
             print(f"[!] Failed to open browser: {e}")
         return None
@@ -284,25 +305,24 @@ def play_in_mpv(reel_id_or_url: str, fallback_url: str | None = None) -> subproc
     print(f"[*] Spawning MPV for: {', '.join(targets)}")
     try:
         proc = subprocess.Popen(
-            MPV_BASE + extra + targets,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True
+            MPV_BASE + extra + targets, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True
         )
         return proc
     except Exception as e:
         print(f"[!] Failed to spawn MPV: {e}", file=sys.stderr)
         return None
 
+
 def copy_to_clipboard(text: str) -> bool:
     """Copies text to Wayland clipboard via wl-copy."""
     try:
         proc = subprocess.Popen(["wl-copy"], stdin=subprocess.PIPE)
-        proc.communicate(input=text.encode('utf-8'))
+        proc.communicate(input=text.encode("utf-8"))
         return True
     except Exception as e:
         print(f"[!] wl-copy failed: {e}", file=sys.stderr)
         return False
+
 
 def format_time(ts: float | None) -> tuple[str, str]:
     """Formats epoch timestamp into concise string + relative time."""
@@ -325,6 +345,7 @@ def format_time(ts: float | None) -> tuple[str, str]:
     except Exception:
         return "recently", ""
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     init_db()
     print(f"[✓] Initialized database at {DB_PATH}")

@@ -11,6 +11,7 @@ Videos larger than [ai] max_inline_mb are downscaled and trimmed with ffmpeg fir
 
 from __future__ import annotations
 
+import argparse
 import base64
 import json
 import os
@@ -60,6 +61,7 @@ ERROR_BODY_LIMIT = 300  # bytes of an HTTP error body worth logging
 
 # ------------------------------------------------------------------ API key
 
+
 def _clean_value(raw: str) -> str:
     """Value part of a KEY=VALUE line: quotes removed, a trailing ' # comment' dropped."""
     raw = raw.strip()
@@ -79,7 +81,7 @@ def parse_secrets(text: str) -> dict[str, str]:
         if not line or line.startswith("#"):
             continue
         if line.startswith("export "):
-            line = line[len("export "):].lstrip()
+            line = line[len("export ") :].lstrip()
         name, sep, value = line.partition("=")
         name = name.strip()
         if sep and name in KEY_NAMES:
@@ -103,11 +105,14 @@ def get_api_key() -> str | None:
 
 # ------------------------------------------------------------------ summary cache
 
+
 def get_cached_summary(reel_id: str) -> str | None:
     """Summary from SQLite, else from the disk cache."""
     try:
         with get_db() as conn:
-            row = conn.execute("SELECT summary FROM reels WHERE reel_id = ? AND summary IS NOT NULL", (reel_id,)).fetchone()
+            row = conn.execute(
+                "SELECT summary FROM reels WHERE reel_id = ? AND summary IS NOT NULL", (reel_id,)
+            ).fetchone()
             if row and row["summary"]:
                 return row["summary"].strip()
     except sqlite3.Error:
@@ -139,6 +144,7 @@ def save_summary(reel_id: str, summary_text: str) -> None:
 
 # ------------------------------------------------------------------ video preparation
 
+
 def prepare_video_bytes(video_path: str, reel_id: str) -> bytes:
     """
     Video bytes for the request. Anything over [ai] max_inline_mb is first downscaled to 720p and
@@ -148,15 +154,30 @@ def prepare_video_bytes(video_path: str, reel_id: str) -> bytes:
     if size <= MAX_INLINE_BYTES:
         return Path(video_path).read_bytes()
 
-    print(f"[*] Video for {reel_id} is {size / 1024 / 1024:.1f}MB (>{AI.max_inline_mb}MB limit) — downscaling with ffmpeg...")
+    print(
+        f"[*] Video for {reel_id} is {size / 1024 / 1024:.1f}MB (>{AI.max_inline_mb}MB limit) — downscaling with ffmpeg..."
+    )
     with tempfile.TemporaryDirectory(prefix="wa_reel_opt_") as tmp:
         target = os.path.join(tmp, f"{reel_id}.mp4")
         cmd = [
-            "ffmpeg", "-y", "-i", video_path,
-            "-vf", "scale='min(720,iw)':-2",
-            "-c:v", "libx264", "-crf", "28", "-preset", "veryfast",
-            "-c:a", "aac", "-b:a", "96k",
-            "-t", str(AI.clip_seconds),
+            "ffmpeg",
+            "-y",
+            "-i",
+            video_path,
+            "-vf",
+            "scale='min(720,iw)':-2",
+            "-c:v",
+            "libx264",
+            "-crf",
+            "28",
+            "-preset",
+            "veryfast",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "96k",
+            "-t",
+            str(AI.clip_seconds),
             target,
         ]
         try:
@@ -172,6 +193,7 @@ def prepare_video_bytes(video_path: str, reel_id: str) -> bytes:
 
 
 # ------------------------------------------------------------------ Gemini call
+
 
 def extract_text(data: dict) -> str:
     """Concatenated text parts of the first candidate ('' if there are none)."""
@@ -271,10 +293,14 @@ def summarize_reel(reel_id: str, force: bool = False) -> str | None:
         return None
 
     payload = {
-        "contents": [{"parts": [
-            {"inlineData": {"mimeType": "video/mp4", "data": b64_video}},
-            {"text": "Summarize this reel directly."},
-        ]}],
+        "contents": [
+            {
+                "parts": [
+                    {"inlineData": {"mimeType": "video/mp4", "data": b64_video}},
+                    {"text": "Summarize this reel directly."},
+                ]
+            }
+        ],
         "systemInstruction": {"parts": [{"text": UNIVERSAL_SYSTEM_PROMPT}]},
         "generationConfig": {"temperature": 0.2},
     }
@@ -288,13 +314,19 @@ def summarize_reel(reel_id: str, force: bool = False) -> str | None:
     return None
 
 
-def main() -> None:
-    if len(sys.argv) < 2:
-        print("Usage: wa_reel_ai.py <reel_id_or_url> [--force]")
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description="Summarize a downloaded reel with Gemini (cached in SQLite and in the summaries/ directory).",
+    )
+    parser.add_argument("reel", nargs="?", metavar="reel_id_or_url", help="Instagram shortcode, or a full /reel/ URL")
+    parser.add_argument("--force", action="store_true", help="summarize again even if a cached summary exists")
+    args = parser.parse_args(argv)
+    if not args.reel:
+        parser.print_usage()
         sys.exit(1)
 
-    reel_id = get_reel_id(sys.argv[1])
-    summary = summarize_reel(reel_id, force="--force" in sys.argv)
+    reel_id = get_reel_id(args.reel)
+    summary = summarize_reel(reel_id, force=args.force)
     if summary:
         print(f"\n[Summary for {reel_id}]:\n{summary}")
     else:

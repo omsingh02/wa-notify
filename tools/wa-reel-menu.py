@@ -134,7 +134,9 @@ def open_digest(show_all: bool) -> None:
         subprocess.Popen([*UI.terminal_fallback, *tail])  # e.g. footclient exists but no foot server is reachable
 
 
-def handle_selection(index: int, reels: list[dict], lookup: dict[int, dict], actions: dict[str, int], is_history_mode: bool) -> None:
+def handle_selection(
+    index: int, reels: list[dict], lookup: dict[int, dict], actions: dict[str, int], is_history_mode: bool
+) -> None:
     if index == actions.get(LABEL_MARK_ALL):
         # Only what was listed: reels that arrived while the menu was open stay unopened.
         count = mark_opened_many(r["reel_id"] for r in reels)
@@ -153,7 +155,9 @@ def handle_selection(index: int, reels: list[dict], lookup: dict[int, dict], act
 def main() -> None:
     parser = argparse.ArgumentParser(description="WhatsApp Reels Interactive Fuzzel Picker")
     parser.add_argument("-a", "--all", action="store_true", help="Show all reels (opened and unopened)")
-    parser.add_argument("-o", "--opened", "--history", dest="opened", action="store_true", help="Show opened/watched reels history")
+    parser.add_argument(
+        "-o", "--opened", "--history", dest="opened", action="store_true", help="Show opened/watched reels history"
+    )
     args = parser.parse_args()
 
     reels, prompt, is_history_mode = choose_reels(args)

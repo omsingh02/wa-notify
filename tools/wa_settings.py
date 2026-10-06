@@ -96,7 +96,6 @@ class Settings:
         return self.config_dir / "token.txt"
 
 
-
 def _coerce(name: str, default: Any, value: Any) -> Any:
     """`value` converted to the type of `default`, or the default (with a warning) if it doesn't fit."""
     if isinstance(default, tuple):
@@ -126,8 +125,13 @@ def _section(cls: type, table: Any, label: str):
     for key in table:
         if key not in known:
             _warn_once(f"unknown key [{label}] {key}")
-    return cls(**{f.name: _coerce(f"{label}.{f.name}", getattr(defaults, f.name), table[f.name])
-                  for f in fields(cls) if f.name in table})
+    return cls(
+        **{
+            f.name: _coerce(f"{label}.{f.name}", getattr(defaults, f.name), table[f.name])
+            for f in fields(cls)
+            if f.name in table
+        }
+    )
 
 
 def expand_home(path: str, env: Mapping[str, str] | None = None) -> Path:
@@ -169,5 +173,7 @@ def load(env: Mapping[str, str] | None = None) -> Settings:
 
 if __name__ == "__main__":
     s = load()
-    print(f"data_dir   : {s.data_dir}\nconfig_dir : {s.config_dir}\nconfig file: {s.config_file} "
-          f"({'present' if s.config_file.exists() else 'absent — defaults'})\nui         : {s.ui}\nai         : {s.ai}")
+    print(
+        f"data_dir   : {s.data_dir}\nconfig_dir : {s.config_dir}\nconfig file: {s.config_file} "
+        f"({'present' if s.config_file.exists() else 'absent — defaults'})\nui         : {s.ui}\nai         : {s.ai}"
+    )

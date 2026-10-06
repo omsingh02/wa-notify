@@ -7,6 +7,7 @@ import sys
 import time
 
 import pytest
+
 from conftest import load_script
 
 
@@ -17,8 +18,10 @@ def menu(tools):
 
 def add(tools, rid, sender="Friend", opened=0):
     with tools.walib.get_db() as c:
-        c.execute("insert or replace into reels(reel_id,sender,url,timestamp,first_seen_at,is_opened) values(?,?,?,?,?,?)",
-                  (rid, sender, f"https://www.instagram.com/reel/{rid}", int(time.time()), int(time.time() * 1000), opened))
+        c.execute(
+            "insert or replace into reels(reel_id,sender,url,timestamp,first_seen_at,is_opened) values(?,?,?,?,?,?)",
+            (rid, sender, f"https://www.instagram.com/reel/{rid}", int(time.time()), int(time.time() * 1000), opened),
+        )
 
 
 def opened(tools, rid):
@@ -45,7 +48,7 @@ def test_mark_all_marks_only_the_listed_reels(tools, menu, sandbox, monkeypatch)
     run_menu(menu, sandbox, monkeypatch, "Mark all as opened", insert="LATE0000001")
     assert opened(tools, "MENUA000001") == 1 and opened(tools, "MENUB000001") == 1
     assert opened(tools, "LATE0000001") == 0, "a reel that arrived while the menu was open must stay unopened"
-    note = [c for c in sandbox.calls("notify-send")][-1]["argv"]
+    note = sandbox.calls("notify-send")[-1]["argv"]
     assert "Marked 2 reel(s) as opened" in note[-1]
 
 

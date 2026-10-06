@@ -15,16 +15,16 @@ The fetch itself (yt-dlp, cookies, per-reel lock) lives in wa_reel_dl.fetch_medi
 decides *when* to call it.
 """
 
-import time
 import random
 import threading
+import time
 from dataclasses import dataclass
 
-COOLDOWNS = (900, 1800, 3600, 7200)   # pause after consecutive "blocked" results (seconds)
-NET_PAUSES = (60, 120, 300, 600)      # pause after consecutive network failures (seconds); no retry attempt is used up
-BACKOFF = (300, 1200, 3600, 10800)    # retry delays for transient failures (seconds)
-PACE = (3.0, 7.0)                     # random pause between two fetches (seconds)
-MAX_AGE = 24 * 3600                   # stop retrying reels older than this (seconds)
+COOLDOWNS = (900, 1800, 3600, 7200)  # pause after consecutive "blocked" results (seconds)
+NET_PAUSES = (60, 120, 300, 600)  # pause after consecutive network failures (seconds); no retry attempt is used up
+BACKOFF = (300, 1200, 3600, 10800)  # retry delays for transient failures (seconds)
+PACE = (3.0, 7.0)  # random pause between two fetches (seconds)
+MAX_AGE = 24 * 3600  # stop retrying reels older than this (seconds)
 
 
 @dataclass
@@ -39,8 +39,20 @@ class Job:
 class Prefetcher:
     """fetch(url, reel_id) -> object with .ok, .reason, .detail, .kind, .paths (see wa_reel_dl.FetchResult)."""
 
-    def __init__(self, fetch, on_success=None, *, clock=time.time, rng=random.uniform, log=None,
-                 pace=PACE, cooldowns=COOLDOWNS, net_pauses=NET_PAUSES, backoff=BACKOFF, max_age=MAX_AGE):
+    def __init__(
+        self,
+        fetch,
+        on_success=None,
+        *,
+        clock=time.time,
+        rng=random.uniform,
+        log=None,
+        pace=PACE,
+        cooldowns=COOLDOWNS,
+        net_pauses=NET_PAUSES,
+        backoff=BACKOFF,
+        max_age=MAX_AGE,
+    ):
         self._fetch = fetch
         self._on_success = on_success
         self._clock = clock
@@ -80,15 +92,15 @@ class Prefetcher:
         now = self._clock()
         with self._lock:
             return {
-                'queued': len(self._jobs),
-                'paused_for': max(0, int(self._cooldown_until - now)),
-                'blocked_strikes': self._strikes,
-                'network_strikes': self._net_strikes,
+                "queued": len(self._jobs),
+                "paused_for": max(0, int(self._cooldown_until - now)),
+                "blocked_strikes": self._strikes,
+                "network_strikes": self._net_strikes,
             }
 
     def start(self):
         if self._thread is None:
-            self._thread = threading.Thread(target=self._loop, name='reel-prefetch', daemon=True)
+            self._thread = threading.Thread(target=self._loop, name="reel-prefetch", daemon=True)
             self._thread.start()
         return self
 
@@ -103,7 +115,7 @@ class Prefetcher:
         with self._lock:
             for rid in [r for r, j in self._jobs.items() if now - j.first_seen > self._max_age]:
                 del self._jobs[rid]
-                self._log(f'[*] prefetch {rid}: older than {self._max_age // 3600} h, giving up')
+                self._log(f"[*] prefetch {rid}: older than {self._max_age // 3600} h, giving up")
             if not self._jobs:
                 return None
             if now < self._cooldown_until:
@@ -115,12 +127,12 @@ class Prefetcher:
                 return max(1.0, min(j.not_before for j in self._jobs.values()) - now)
             job = max(due, key=lambda j: j.first_seen)
 
-        self._log(f'[*] Pre-downloading reel in background: {job.reel_id}...')
+        self._log(f"[*] Pre-downloading reel in background: {job.reel_id}...")
         try:
             res = self._fetch(job.url, job.reel_id)
-        except Exception as e:   # a bug in the fetcher must not kill the worker
-            self._log(f'[!] prefetch {job.reel_id}: unexpected error: {e}')
-            res = _Failure('error', str(e))
+        except Exception as e:  # a bug in the fetcher must not kill the worker
+            self._log(f"[!] prefetch {job.reel_id}: unexpected error: {e}")
+            res = _Failure("error", str(e))
 
         now = self._clock()
         self._handle(job, res, now)
@@ -129,67 +141,73 @@ class Prefetcher:
         return gap
 
     def _handle(self, job, res, now):
-        ok = bool(getattr(res, 'ok', False))
-        reason = getattr(res, 'reason', None) or 'error'
-        detail = getattr(res, 'detail', '') or ''
+        ok = bool(getattr(res, "ok", False))
+        reason = getattr(res, "reason", None) or "error"
+        detail = getattr(res, "detail", "") or ""
         with self._lock:
             if ok:
                 self._jobs.pop(job.reel_id, None)
                 self._strikes = 0
                 self._net_strikes = 0
-                self._log(f'[✓] prefetch {job.reel_id}: {getattr(res, "kind", None) or "media"} ready')
-            elif reason == 'network':
+                self._log(f"[✓] prefetch {job.reel_id}: {getattr(res, 'kind', None) or 'media'} ready")
+            elif reason == "network":
                 # Not the reel's fault and not Instagram's: don't use up one of its attempts, just wait for the network.
                 self._net_strikes += 1
                 wait = self._net_pauses[min(self._net_strikes, len(self._net_pauses)) - 1]
                 self._cooldown_until = max(self._cooldown_until, now + wait)
-                short = (detail[:90] + '…') if len(detail) > 90 else detail
-                self._log(f"[!] Can't reach Instagram ({short or 'network problem'}) — pausing the fetch queue for {wait} s "
-                          f'({len(self._jobs)} queued)')
-            elif reason == 'blocked':
+                short = (detail[:90] + "…") if len(detail) > 90 else detail
+                self._log(
+                    f"[!] Can't reach Instagram ({short or 'network problem'}) — pausing the fetch queue for {wait} s "
+                    f"({len(self._jobs)} queued)"
+                )
+            elif reason == "blocked":
                 self._strikes += 1
                 wait = self._cooldowns[min(self._strikes, len(self._cooldowns)) - 1]
                 self._cooldown_until = now + wait
                 job.not_before = self._cooldown_until
-                self._log(f'[!] Instagram is blocking downloads — pausing the fetch queue for {wait // 60} min '
-                          f'({len(self._jobs)} queued)')
-            elif reason in ('no_video', 'no_ytdlp'):
+                self._log(
+                    f"[!] Instagram is blocking downloads — pausing the fetch queue for {wait // 60} min "
+                    f"({len(self._jobs)} queued)"
+                )
+            elif reason in ("no_video", "no_ytdlp"):
                 self._jobs.pop(job.reel_id, None)
-                self._log(f'[*] prefetch {job.reel_id}: {detail or reason} — not retrying')
-            elif reason == 'unavailable':
+                self._log(f"[*] prefetch {job.reel_id}: {detail or reason} — not retrying")
+            elif reason == "unavailable":
                 job.attempts += 1
                 if job.attempts >= 2:
                     self._jobs.pop(job.reel_id, None)
-                    self._log(f'[*] prefetch {job.reel_id}: unavailable ({detail}) — giving up')
+                    self._log(f"[*] prefetch {job.reel_id}: unavailable ({detail}) — giving up")
                 else:
                     job.not_before = now + 3600
-                    self._log(f'[*] prefetch {job.reel_id}: unavailable ({detail}) — one more try in 60 min')
+                    self._log(f"[*] prefetch {job.reel_id}: unavailable ({detail}) — one more try in 60 min")
             else:
                 job.attempts += 1
                 if job.attempts > len(self._backoff):
                     self._jobs.pop(job.reel_id, None)
-                    self._log(f'[*] prefetch {job.reel_id}: {reason} ({detail}) — giving up after {job.attempts} attempts')
+                    self._log(
+                        f"[*] prefetch {job.reel_id}: {reason} ({detail}) — giving up after {job.attempts} attempts"
+                    )
                 else:
                     delay = self._backoff[job.attempts - 1]
                     job.not_before = now + delay
-                    self._log(f'[*] prefetch {job.reel_id}: {reason} ({detail}) — retry in {delay // 60} min')
+                    self._log(f"[*] prefetch {job.reel_id}: {reason} ({detail}) — retry in {delay // 60} min")
         if ok and self._on_success:
             try:
                 self._on_success(job.reel_id, res)
             except Exception as e:
-                self._log(f'[!] prefetch {job.reel_id}: on_success failed: {e}')
+                self._log(f"[!] prefetch {job.reel_id}: on_success failed: {e}")
 
     def _loop(self):
         while True:
             try:
                 wait = self.step()
             except Exception as e:
-                self._log(f'[!] prefetch loop error: {e}')
+                self._log(f"[!] prefetch loop error: {e}")
                 wait = 30.0
             if wait is None:
                 self._wake.wait()
             else:
-                self._wake.wait(min(wait, 60.0))   # re-check at least once a minute
+                self._wake.wait(min(wait, 60.0))  # re-check at least once a minute
             self._wake.clear()
 
 
@@ -198,6 +216,6 @@ class _Failure:
     kind = None
     paths = ()
 
-    def __init__(self, reason, detail=''):
+    def __init__(self, reason, detail=""):
         self.reason = reason
         self.detail = detail

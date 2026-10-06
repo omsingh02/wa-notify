@@ -17,17 +17,29 @@ secretstorage = ["secretstorage"]  # lets yt-dlp unlock Chromium-based browsers'
 line-length = 120
 target-version = "py311"
 src = ["tools", "tests"]
+extend-exclude = [".backup-*", "site/.vercel", "node_modules"]
 
 [tool.ruff.lint]
-# Deliberately conservative: syntax errors + pyflakes (unused imports/names, undefined names).
-# Style-oriented sets (E, W, I, B, UP, SIM) were not run against this code yet; enable them one at a time
-# (`ruff check --select I --fix`, ...) rather than all at once. Note: the code is not ruff-formatted,
-# so don't enforce `ruff format --check` until `ruff format` has been applied once.
-select = ["E9", "F"]
+select = [
+  "E", "W",  # pycodestyle
+  "F",       # pyflakes
+  "I",       # import order
+  "B",       # flake8-bugbear
+  "UP",      # pyupgrade
+  "SIM",     # flake8-simplify
+  "C4",      # comprehensions
+  "PIE",     # misc. anti-patterns
+]
+ignore = [
+  "E501",    # line length: `ruff format` wraps code; what is left are long strings and log messages
+]
 
 [tool.ruff.lint.per-file-ignores]
-# The ported test harness unpacks (result, stdout, stderr) and often needs only part of it.
-"tests/**" = ["F841"]
+# The CLI scripts put tools/ on sys.path before importing their sibling modules (they run through symlinks in
+# ~/.local/bin), and the tests do the same through conftest.py, so imports legitimately follow code.
+"tools/*.py" = ["E402"]
+# The test harness unpacks (result, stdout, stderr) and often needs only part of it.
+"tests/**" = ["E402", "F841", "SIM115"]  # SIM115: the harness writes small files with one-liners
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
