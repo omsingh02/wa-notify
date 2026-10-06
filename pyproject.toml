@@ -25,6 +25,10 @@ src = ["tools", "tests"]
 # so don't enforce `ruff format --check` until `ruff format` has been applied once.
 select = ["E9", "F"]
 
+[tool.ruff.lint.per-file-ignores]
+# The ported test harness unpacks (result, stdout, stderr) and often needs only part of it.
+"tests/**" = ["F841"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q -p no:cacheprovider"

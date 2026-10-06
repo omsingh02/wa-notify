@@ -103,12 +103,12 @@ def migrate():
     total_summarized = conn.execute("SELECT COUNT(*) FROM reels WHERE summary_status = 'done'").fetchone()[0]
     conn.close()
 
-    print(f"\n[✓] Migration Complete!")
+    print("\n[✓] Migration Complete!")
     print(f"    - Imported: {imported_count} unique reels from {REELS_JSONL}")
     print(f"    - Total in DB: {total_reels}")
     print(f"    - Marked Opened: {total_opened} (from {len(opened_ids)} known opened IDs)")
     print(f"    - With AI Summaries: {total_summarized}")
-    print(f"    - All marked with alerted=1, is_likely_live=0 to prevent notification storms.")
+    print("    - All marked with alerted=1, is_likely_live=0 to prevent notification storms.")
 
 if __name__ == '__main__':
     migrate()

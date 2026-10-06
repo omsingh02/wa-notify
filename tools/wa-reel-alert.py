@@ -139,7 +139,7 @@ def notify_reel(reel, args):
     sender = reel['sender'] or 'Unknown'
     url = reel['url']
 
-    print(f"\n[!] >>> LIVE REEL DETECTED <<<")
+    print("\n[!] >>> LIVE REEL DETECTED <<<")
     print(f"    From: {sender}")
     print(f"    URL:  {url}")
     print(f"    ID:   {reel_id}")
