@@ -19,7 +19,7 @@ flowchart LR
   A --> Q["Prefetcher queue<br/>wa_reel_queue.py"]
   Q --> D["wa_reel_dl.fetch_media<br/>yt-dlp, images, locks"]
   D --> R[("reels/ cache<br/>videos + images")]
-  D --> G["wa_reel_ai.py<br/>Gemini (optional)"]
+  Q -- "video ready" --> G["wa_reel_ai.py<br/>Gemini (optional)"]
   G --> DB
   M["wa-reel-menu · wa-reel-digest<br/>notification actions"] --> P["mpv<br/>floating, pinned window"]
   DB --> M
@@ -40,8 +40,9 @@ A browser extension cannot write to an arbitrary path, so a small Node process o
 
 * Plain Node `http` server bound to `127.0.0.1` (default port **8765**, `WA_NOTIFY_PORT`).
 * Endpoints: `POST /log` (alias `POST /api/messages`) and `GET /health`.
-* Storage: `node:sqlite` `DatabaseSync` in WAL mode, `busy_timeout = 5000`, `synchronous = NORMAL`.
-  Node (server) and Python (tools) both write to the same database; WAL plus the busy timeout is what makes that work.
+* Storage: `node:sqlite` `DatabaseSync` in WAL mode, `synchronous = NORMAL`, and a `busy_timeout` of 5000 ms by default (`WA_NOTIFY_BUSY_TIMEOUT_MS`) that is set **before** `journal_mode`. If the database is locked at startup the server retries (20 × 250 ms) instead of exiting.
+  Node (server) and Python (tools) both write to the same database; WAL plus the busy timeout is what makes that work. The server's DB calls are synchronous, so a long lock also stalls its event loop for up to the busy timeout.
+* **Atomic batches**: each request is ingested in one `BEGIN IMMEDIATE … COMMIT` transaction. A database failure answers `500 {"error":"db_error"}` and the extension keeps the batch. Other answers: `200 {ok, count, inserted}`, `400` (bad JSON/payload, more than 500 entries), `401` (wrong token), `413` (body over 10 MB), `421` (foreign `Host`), `503` (token file unreadable).
 * **Deduplication**: `INSERT OR IGNORE` keyed by WhatsApp message id (`messages.id`) and by Instagram shortcode (`reels.reel_id`).
   Re-delivery after a page reload or a retry is a no-op.
 * **Freshness rule** (computed once, server-side): `is_likely_live = |captured_at/1000 − message_ts| < 120`.
@@ -145,12 +146,12 @@ Optional. Nothing here logs in; it re-uses cookies the browser already holds.
 
 ### Summaries — `wa_reel_ai.py`
 
-Optional. Sends the video (base64-inlined, downscaled with `ffmpeg` above 18 MB, first 90 s) to the Gemini REST API with a fixed model cascade, stores the text in `reels.summary` and `summaries/<id>.txt`.
+Optional. Started by the alert daemon when the queue reports a downloaded *video* (at most two summaries at a time) or by `wa_reel_dl.py --summary` / `wa_reel_ai.py`. Sends the video, base64-inlined, to the Gemini REST API and tries the models of `[ai] models` in order (default `gemini-3.5-flash`, then `gemini-3.5-flash-lite`). Videos above `[ai] max_inline_mb` (18) are first downscaled to 720p and cut to `[ai] clip_seconds` (90) with `ffmpeg` in a private temp directory; smaller ones are sent as they are. Per model: at most two attempts, retrying only 429/503 (after `Retry-After`, capped at 10 s) and network errors; an empty or blocked 200 is logged with its `finishReason` and not retried. The text goes to `reels.summary` and `summaries/<id>.txt`.
 
 ### Playback — `walib.play_in_mpv`
 
 1. Use cached media, otherwise `fetch_media(interactive=True)` (a "Fetching reel…" notification appears only if it takes > 2 s).
-2. Mark the reel opened, `pkill` the previous floating window, then start `mpv` with class/title `wa-reel`, `--no-border`, `--autofit=420x750`; videos loop (`--loop-file=inf`), photo posts show images (`--image-display-duration=inf --loop-playlist=inf`, `<`/`>` to switch).
+2. Mark the reel opened, `pkill` the previous floating window, then start `mpv` with class/title `[ui] app_id` (default `wa-reel`), `--no-border`, `--autofit=<[ui] player_size>` (default `420x750`); videos loop (`--loop-file=inf`), photo posts show images (`--image-display-duration=inf --loop-playlist=inf`, `<`/`>` to switch).
 3. If nothing could be fetched, open the URL with `xdg-open` and send a notification saying *why*.
 
 ## 4. Security model
@@ -158,8 +159,8 @@ Optional. Sends the video (base64-inlined, downscaled with `ffmpeg` above 18 MB,
 * The server binds to **loopback only** and holds no credentials of its own.
 * **Pairing (trust on first use)**: the extension generates a random token and sends it as `X-WA-Notify-Token`. While `~/.config/wa-notify/token.txt` does not exist the server accepts the first token it sees and persists it (`0600`); afterwards the token must match.
   Re-pair by deleting `token.txt` and reloading the extension.
-* **CORS** is defence in depth: allow-list of `https://web.whatsapp.com`, local `http://localhost|127.0.0.1` origins, and the extension origin when `WA_NOTIFY_EXTENSION_ID` is set. The extension's own `fetch` bypasses CORS via `host_permissions`.
-* Hardening in 0.2.0 *(verify in the source/tests)*: `Host` header allow-list on every request (DNS-rebinding), fail-closed on token-file read errors, timing-safe token comparison, `5xx` instead of `200` when the database write fails (so the extension keeps its queue and retries), UTF-8-safe body decoding, `busy_timeout` set before `journal_mode`.
+* **CORS** is defence in depth: allow-list of `https://web.whatsapp.com`, local `http://localhost|127.0.0.1|[::1]` origins, and the extension origin when `WA_NOTIFY_EXTENSION_ID` is set; no `Access-Control-Allow-Origin` header otherwise (never `*`). The extension's own `fetch` bypasses CORS via `host_permissions`.
+* Hardening in 0.2.0, each covered by `local-server/test/server.test.js`: `Host` header allow-list on every request, answered `421` otherwise (DNS rebinding); fail-closed `503` on token-file read errors; constant-time token comparison (`crypto.timingSafeEqual`, no dedicated test); `500` instead of `200` when the database write fails ("a write-locked database answers 500 (not 200)…"); UTF-8-safe body decoding ("UTF-8 characters split across two TCP writes are stored intact"); `busy_timeout` set before `journal_mode` ("startup waits for a lock held by another process…"); payload validation (`400`); database and backup files `0600` ("owner-only").
 * Not solved: an unpaired server accepts unauthenticated writes until the first token arrives; `/health` is unauthenticated; the archive itself is sensitive. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
 ## 5. Failure handling at a glance
@@ -167,7 +168,7 @@ Optional. Sends the video (base64-inlined, downscaled with `ffmpeg` above 18 MB,
 | Failure | Behaviour |
 |---|---|
 | Server down | extension queues up to 10 000 entries, retries on every new message and every minute (alarm) |
-| Database locked | server waits `busy_timeout` (5 s); on failure responds `5xx` so nothing is dropped |
+| Database locked | server waits `busy_timeout` (5 s by default); on failure responds `500` so nothing is dropped |
 | Instagram blocks anonymous access | one request, then the queue pauses with a growing cool-down |
 | DNS / network outage | queue pauses briefly, attempts are not consumed; a click retries once |
 | Download times out | process group killed, `.part` kept, retried later with backoff |

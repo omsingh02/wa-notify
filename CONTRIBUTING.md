@@ -16,7 +16,7 @@ read [docs/LIMITATIONS.md](docs/LIMITATIONS.md) first: most "doesn't work on my 
 ```bash
 git clone https://github.com/omsingh02/wa-notify.git && cd wa-notify
 python -m venv .venv && . .venv/bin/activate
-pip install -r requirements-dev.txt        # pytest, ruff, yt-dlp (see the file for the exact set)
+pip install -r requirements-dev.txt        # yt-dlp, rich, pytest and a pinned ruff
 ```
 
 Node ≥ 22.13 is needed for the server and its tests (`node:sqlite`).
@@ -25,9 +25,13 @@ Node ≥ 22.13 is needed for the server and its tests (`node:sqlite`).
 
 ```bash
 pytest                                     # Python: unit + flow tests with fake yt-dlp / mpv / notify-send; no network, no real desktop
-node --test                                # server (sandbox port + temp dirs) and extension queue/helper tests
-ruff check . && ruff format --check .      # lint + format
-node --check extension/src/*.js local-server/server.js
+node --test "extension/test/*.test.js" "local-server/test/*.test.js"
+                                           # server (sandbox port + temp dirs) and extension queue/helper tests.
+                                           # Quote the globs: Node 22 rejects directory arguments, and a bare
+                                           # `node --test` would also run the test helper files.
+ruff check . && ruff format --check .      # lint + format: CI enforces both, run `ruff format .` before you push
+find extension local-server -name '*.js' -not -path '*/node_modules/*' -print0 | xargs -0 -n1 node --check
+                                           # syntax check (node --check takes one file per call, as CI does)
 ```
 
 Tests must never touch your real `~/.config/wa-notify`, `~/.local/share/wa-notify`, the live server on `:8765`, or real `mpv`/`pkill`. Use temp dirs, random ports and stubs on `PATH`.

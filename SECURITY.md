@@ -21,7 +21,7 @@ Include what you found, how to reproduce it and the impact. Never include real m
 | Instagram cookies | `~/.config/wa-notify/instagram-cookies.txt` (`0600`) | a logged-in session |
 | Gemini API key | `GEMINI_API_KEY_REELS` / `~/.config/.secrets` | billable credential |
 
-All are plain files protected only by your user account and home-directory permissions. Encrypt backups and keep them out of cloud sync.
+All are plain, unencrypted files protected only by file modes, your user account and home-directory permissions. Encrypt backups and keep them out of cloud sync.
 
 ## Threat model (what the design does and does not defend against)
 
@@ -35,7 +35,7 @@ Out of scope / known gaps (see [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md)):
 * An **unpaired** server accepts the first token it sees (trust on first use) and unauthenticated writes until then.
 * The extension relays page events without authentication; a script in the WhatsApp page context can forge entries.
 * WhatsApp's and Instagram's own security and terms; this tool deliberately hooks private internals.
-* Multi-user machines: data files use default permissions and rely on the parent directory's mode.
+* Multi-user machines: the server creates its directories `0700` and keeps the database, the JSONL backup and `token.txt` `0600` (best effort, at startup), and the cookie cache is `0600`; but downloaded media, summaries and any directory you created yourself use default modes and rely on your home directory's permissions.
 
 ## Disclosure
 

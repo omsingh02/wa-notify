@@ -9,7 +9,7 @@
 2. Clone the repository anywhere. Symlink the entry points into `~/.local/bin` (names are conventions; the unit files expect them):
    ```bash
    cd tools
-   for t in alert:wa-reel-alert.py menu:wa-reel-menu.py digest:wa-reel-digest.py cleanup:wa-reel-cleanup.py dl:wa_reel_dl.py summary:wa_reel_ai.py; do
+   for t in alert:wa-reel-alert.py menu:wa-reel-menu.py digest:wa-reel-digest.py cleanup:wa-reel-cleanup.py dl:wa_reel_dl.py summary:wa_reel_ai.py auth:wa_reel_auth.py; do
      ln -sf "$PWD/${t#*:}" ~/.local/bin/wa-reel-${t%%:*}
    done
    ```
@@ -39,7 +39,7 @@ Keep a copy before upgrading (`cp -a tools extension local-server /somewhere`), 
 
 ## Hyprland (window rules and keybinding)
 
-The player window is matched by **class and title** `wa-reel`; the digest terminal by class `wa-reel-digest`. Example (Hyprland ≥ 0.53 block syntax — older versions use `windowrulev2`):
+The player window is matched by **class and title** `wa-reel`; the digest terminal by class `wa-reel-digest`. Example (the block syntax the author's Hyprland accepts; older releases use `windowrulev2` lines — check the wiki for your version):
 
 ```ini
 windowrule {
@@ -74,7 +74,7 @@ default-timeout=12000
 format=<b>%s</b>\n%b
 ```
 
-Use the two-character `\n` escape; a literal line break inside `format=` is a parse error in mako. Clicking a notification needs `on-button-left=invoke-default-action` (mako's default).
+mako config values are single-line: write the newline inside `format=` as the two characters `\n` (the version in `deploy/mako/wa-reels.conf` also writes a literal `%` as `%%`). Clicking a notification to play needs `on-button-left=invoke-default-action`; `deploy/mako/wa-reels.conf` sets it explicitly (whether it is also mako's built-in default was not checked).
 
 ## Logs
 
@@ -91,8 +91,24 @@ Sender names appear in the log under `LIVE REEL DETECTED`; scrub before sharing 
 
 * `wa-reel-cleanup` (daily timer) deletes cached media of reels **opened** more than 7 days ago (videos, photo-post images, leftovers) and abandoned partial downloads older than 3 days. Unopened reels' media is never deleted. `wa-reel-cleanup --dry-run` shows what it would do.
 * Back up the database with the SQLite online backup, not a plain copy, while the server runs:
-  `sqlite3 "$WA_NOTIFY_DATA_DIR/wa-notify.db" ".backup 'wa-notify-backup.db'"`.
+  `sqlite3 "${WA_NOTIFY_DATA_DIR:-$HOME/.local/share/wa-notify}/wa-notify.db" ".backup 'wa-notify-backup.db'"`.
 * The archive is sensitive: encrypt backups, and remember that cloud-synced home directories copy other people's messages.
+
+## Landing page (Vercel)
+
+`site/` is a static, dependency-free page (no build step, no scripts). It is deployed with the Vercel CLI:
+
+```bash
+cd site
+vercel deploy --prod --yes     # first time: `vercel link --project <name>`; the CLI may need a retry on a flaky network
+```
+
+The page is not tied to the application: nothing in the extension, server or tools talks to it.
+
+**Git auto-deploy is not connected.** `vercel git connect <repo-url>` fails for a private repository until Vercel's GitHub app
+has been authorized for it (browser step: Vercel dashboard → Project → Settings → Git → Connect, then grant the app access
+to this repository). If you connect it, also set the project's *Root Directory* to `site`. From that moment run CLI deploys
+from the repository root instead of from `site/`, because Vercel applies the root directory relative to what you upload.
 
 ## Troubleshooting playbook
 
@@ -102,7 +118,7 @@ Sender names appear in the log under `LIVE REEL DETECTED`; scrub before sharing 
 | Server returns `401` / extension queue grows | token mismatch (reinstalled extension, second browser profile) | delete `~/.config/wa-notify/token.txt`, restart nothing, reload the extension; the next request re-pairs |
 | Reels open in the browser, journal shows `blocking downloads` | Instagram rate-limits anonymous access (`login page … exceeded the rate-limit`) | wait (the queue retries itself), or configure `[instagram]`; see README |
 | Journal shows `Resolving timed out`, `Temporary failure in name resolution`, or lookups take 10–20 s | local DNS flapping (e.g. `systemd-resolved` switching between DNS-over-TLS and UDP: `journalctl -u systemd-resolved` shows "Using degraded feature set …") | fix the resolver; wa-notify only pauses and retries. `resolvectl query www.instagram.com` shows the stall |
-| `database is locked` at server start | another process held a lock before the busy timeout was set (fixed in 0.2.0 — verify) | systemd restarts the unit; upgrade |
+| `database is locked` at server start | another process held a lock before the busy timeout was set (fixed in 0.2.0: `busy_timeout` now comes first and startup retries; covered by the server test "startup waits for a lock held by another process…") | upgrade; on older versions systemd restarts the unit |
 | `secretstorage not available` warning | `python-secretstorage` not installed | install it, restart `wa-reel-alert.service` |
 | Menu does nothing from a keybinding | `~/.local/bin` not in the compositor's `PATH`, or `fuzzel` not installed | use absolute paths in the bind |
 | Floating window not floating | window rules missing or wrong class | `hyprctl clients -j` and check `class` is `wa-reel` |

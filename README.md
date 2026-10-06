@@ -58,7 +58,7 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 | Tools | Python ≥ 3.11 |
 | Media | `yt-dlp`, `ffmpeg`, `mpv` |
 | Desktop | `fuzzel`, `fzf`, `foot`/`footclient`, `wl-clipboard`, `notify-send` (libnotify) + a mako-style daemon |
-| Optional | `python-rich` (pretty digest), `nmcli` (metered-network check), `python-secretstorage` (read Chromium cookies from gnome-keyring), a Gemini API key (summaries) |
+| Optional | `python-rich` (pretty digest), `nmcli` + `ping` (metered / slow-Wi-Fi check before prefetching), `python-secretstorage` (read Chromium cookies from gnome-keyring), a Gemini API key (summaries) |
 
 ## Quick start
 
@@ -108,7 +108,7 @@ Clicking something that is not cached yet shows a *Fetching reel…* notificatio
 
 ### Photo posts and carousels
 
-yt-dlp cannot download image-only Instagram posts, so after the video attempt reports "no video", `wa_reel_dl` asks yt-dlp for the post's metadata, takes the largest image of every item and saves them as `<id>_1.jpg`, `<id>_2.jpg`, … They open in the same window as an image slideshow (`<` / `>`). Mixed carousels (video + photos) show only the video.
+yt-dlp cannot download image-only Instagram posts, so after the video attempt reports "no video", `wa_reel_dl` asks yt-dlp for the post's metadata, takes the largest image of every item and saves them as `<id>_1.jpg`, `<id>_2.jpg`, … (the file suffix follows the image's content type: `.jpg`, `.webp` or `.png`). They open in the same window as an image slideshow (`<` / `>`). Mixed carousels (video + photos) show only the video.
 
 ### Instagram session (optional)
 
@@ -127,8 +127,8 @@ Anonymous access is rate-limited and eventually redirected to Instagram's login 
 | Reels open in the browser | `journalctl --user -u wa-reel-alert -f`: *blocking downloads* = Instagram rate limit (the queue retries by itself; configure `[instagram]` for reliability). *Can't reach Instagram* = DNS/network |
 | Long stalls, `Resolving timed out` | your resolver is flapping (`journalctl -u systemd-resolved`, `resolvectl query www.instagram.com`); not a wa-notify bug |
 | Extension queue grows, server answers `401` | token mismatch after reinstalling: delete `~/.config/wa-notify/token.txt`, reload the extension |
-| `database is locked` | transient while another process writes; the server waits 5 s and answers `5xx` so nothing is lost |
-| No summaries | set `GEMINI_API_KEY_REELS`; summaries are skipped silently without a key and can stay `pending` after quota errors |
+| `database is locked` | transient while another process writes; the server waits the busy timeout (5 s by default) and answers `500` so the extension keeps the batch |
+| No summaries | set `GEMINI_API_KEY_REELS` (environment or `~/.config/.secrets`). Without a key the alert log says `No GEMINI_API_KEY_REELS found …`; after quota errors a reel can stay `pending` |
 
 More: [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
@@ -145,20 +145,20 @@ This repository is **not portable by design**. Highlights (full tables with file
 
 * Linux-only APIs (`fcntl`, `pkill`, `xdg-open`), Wayland-only tools (`wl-copy`, `fuzzel`, `mpv --wayland-app-id`), Hyprland-specific window rules, mako-style notification actions, `systemd --user`, gnome-keyring + a Brave profile path for cookies.
 * The extension is Chromium-only and relies on **WhatsApp Web's private module names**; any WhatsApp deploy can break capture.
-* Hard-coded: port 8765 in the extension, the 120 s freshness window, the Instagram URL regex, queue ladders, window class `wa-reel` and size `420x750`, Gemini model names, retention days, many more. Some are configurable now (`config.toml [ui]`, `[ai]`, env vars); most are not.
+* Hard-coded: the 120 s freshness window, the Instagram URL regex, queue ladders and timeouts, retention days, the extension's default endpoint `127.0.0.1:8765` (overridable only through a `chrome.storage.local` key), many more. Some defaults are configurable (`config.toml [ui]` / `[ai]`, `WA_NOTIFY_*` env vars): window class `wa-reel` and size `420x750`, launcher, terminal, Gemini model names. Most values are not, and `deploy/hyprland/` repeats the window values, so change both.
 
 Known bugs and what was fixed for the public release: [docs/KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md).
 
 ## Project status and roadmap
 
-Actively used by its author, not actively *maintained* for others. Plausible future work, no promises: adapters for X11/sway and macOS, configurable extension port, schema migrations, summary retry sweep, per-sender filters, `/share/` Instagram URLs, packaging. Issues and small PRs are welcome but may sit unanswered — see [CONTRIBUTING.md](CONTRIBUTING.md).
+Actively used by its author, not actively *maintained* for others. Plausible future work, no promises: adapters for X11/sway and macOS, an options page for the extension endpoint, schema migrations, summary retry sweep, per-sender filters, `/share/` Instagram URLs, packaging. Issues and small PRs are welcome but may sit unanswered — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Development
 
 ```bash
 pytest                      # Python tests (fake yt-dlp/mpv/notify-send, no network)
-node --test                 # server and extension tests
-ruff check . && ruff format --check .
+node --test "extension/test/*.test.js" "local-server/test/*.test.js"   # server and extension tests (quote the globs: Node 22 rejects directory arguments)
+ruff check . && ruff format --check .                                   # CI enforces both
 ```
 
 Conventional Commits, no SLA. Release notes: [CHANGELOG.md](CHANGELOG.md). Historical design documents: [docs/history/](docs/history/).
