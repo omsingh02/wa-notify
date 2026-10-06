@@ -114,6 +114,12 @@ class _CaptureLogger:
         self.errors.append(str(msg))
 
 
+def _is_instagram_host(domain):
+    """instagram.com and its subdomains. A bare endswith("instagram.com") would also accept notinstagram.com."""
+    host = (domain or "").lstrip(".").lower()
+    return host == "instagram.com" or host.endswith(".instagram.com")
+
+
 def _read_from_browser(cfg):
     """Instagram-only cookie jar read straight from the browser profile. Raises RuntimeError with a reason."""
     from yt_dlp.cookies import YoutubeDLCookieJar, extract_cookies_from_browser
@@ -125,7 +131,7 @@ def _read_from_browser(cfg):
     profile = os.path.expanduser(str(cfg["profile"])) if cfg.get("profile") else None  # yt-dlp does not expand "~"
     jar = extract_cookies_from_browser(str(cfg["browser"]), profile=profile, logger=log, **kwargs)
 
-    ig = [c for c in jar if (c.domain or "").lstrip(".").lower().endswith("instagram.com")]
+    ig = [c for c in jar if _is_instagram_host(c.domain)]
     if not any(c.name == "sessionid" and c.value for c in ig):
         if log.errors:
             why = log.errors[0]

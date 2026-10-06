@@ -1,6 +1,6 @@
-# Label set for this repository. Apply with, for example:
-#   gh label create "<name>" --color "<color>" --description "<description>" --force
-# (colors are hex without the leading #)
+# The repository's labels: the single source of truth. scripts/github/apply-settings.sh creates or updates every
+# label listed here (colors are hex without the leading #). Dependabot, the issue forms and .github/release.yml
+# refer to these names, so a name used there has to exist here.
 - name: bug
   color: d73a4a
   description: Something is not working
@@ -46,6 +46,12 @@
 - name: platform:wayland
   color: 0e8a16
   description: Wayland / Hyprland specific
+- name: whatsapp-breakage
+  color: b60205
+  description: WhatsApp Web changed its internals
+- name: instagram-blocked
+  color: b60205
+  description: Instagram rate limits or login walls
 - name: needs-triage
   color: ffffff
   description: Not looked at yet
