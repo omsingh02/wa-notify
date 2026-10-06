@@ -239,3 +239,56 @@ def test_profile_tilde_is_expanded(sandbox, tools, monkeypatch):
     with pytest.raises(RuntimeError):
         tools.auth._read_from_browser({"browser": "brave"})
     assert seen["profile"] is None, "no profile configured: let yt-dlp pick the browser's default"
+
+
+def _cookie(domain, name, value="v"):
+    import http.cookiejar as cj
+
+    return cj.Cookie(
+        version=0,
+        name=name,
+        value=value,
+        port=None,
+        port_specified=False,
+        domain=domain,
+        domain_specified=True,
+        domain_initial_dot=domain.startswith("."),
+        path="/",
+        path_specified=True,
+        secure=True,
+        expires=int(time.time()) + 86400,
+        discard=False,
+        comment=None,
+        comment_url=None,
+        rest={"HttpOnly": None},
+    )
+
+
+def test_cookie_copy_keeps_only_instagram_hosts(sandbox, tools, monkeypatch):
+    """
+    The Instagram-only copy takes instagram.com and its subdomains, not look-alikes such as notinstagram.com
+    (a bare `endswith("instagram.com")` accepts those; flagged by CodeQL as py/incomplete-url-substring-sanitization).
+    """
+    import pytest
+
+    ytc = pytest.importorskip("yt_dlp.cookies")
+    keep = ["instagram.com", ".instagram.com", "www.instagram.com", ".i.instagram.com", "WWW.Instagram.COM"]
+    drop = [
+        "notinstagram.com",
+        ".evilinstagram.com",
+        "fakeinstagram.com",
+        "instagram.com.evil.test",
+        "instagram.company",
+        "",
+        "google.com",
+    ]
+    jar = ytc.YoutubeDLCookieJar()
+    jar.set_cookie(_cookie(".instagram.com", "sessionid"))
+    for n, domain in enumerate(keep + drop):
+        jar.set_cookie(_cookie(domain, f"c{n}"))
+    monkeypatch.setattr(ytc, "extract_cookies_from_browser", lambda *args, **kwargs: jar)
+
+    copied = tools.auth._read_from_browser({"browser": "brave"})
+
+    kept = sorted(c.domain.lstrip(".").lower() for c in copied if c.name != "sessionid")
+    assert kept == sorted(d.lstrip(".").lower() for d in keep)
