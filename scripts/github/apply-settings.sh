@@ -69,15 +69,17 @@ apply_ruleset "$HERE/rulesets/release-tags.json"
 echo "== labels =="
 label() { gh label create "$1" --repo "$SLUG" --color "$2" --description "$3" --force >/dev/null 2>&1 \
   && printf '  OK    %s\n' "$1" || printf '  SKIP  %s\n' "$1"; }
-label bug d73a4a "Something is broken";                 label enhancement a2eeef "New feature or improvement"
-label documentation 0075ca "Docs only";                label "good first issue" 7057ff "Small, well-scoped"
-label "help wanted" 008672 "Extra hands welcome";      label question d876e3 "Usage question"
-label "platform: non-hyprland" fbca04 "Porting beyond the author's Hyprland/Wayland desktop"
-label "platform: non-linux" fbca04 "macOS/Windows support"
-label "area: extension" 1d76db "MV3 browser extension"; label "area: server" 1d76db "Node/SQLite ingestion server"
-label "area: tools" 1d76db "Python reel tools";        label "area: deploy" 1d76db "systemd/Hyprland/mako files"
-label whatsapp-breakage b60205 "WhatsApp Web changed its internals"
-label instagram-blocked b60205 "Rate limits / login walls"
-label dependencies 0366d6 "Dependency updates";        label security ee0701 "Security-related"
-label wontfix ffffff "Out of scope for a hobby project"
+# .github/labels.yml is the single source of truth (Dependabot, the issue forms and release.yml use these names).
+while IFS=$'\t' read -r name color description; do
+  label "$name" "$color" "$description"
+done < <(python3 - "$HERE/../../.github/labels.yml" <<'PY'
+import re, sys
+text = open(sys.argv[1], encoding="utf-8").read()
+for block in re.split(r"(?m)^- name: ", text)[1:]:
+    name, _, rest = block.partition("\n")
+    color = re.search(r"(?m)^\s+color: (\S+)", rest).group(1)
+    description = re.search(r"(?m)^\s+description: (.*)$", rest).group(1)
+    print("\t".join(value.strip().strip("'\"") for value in (name, color, description)))
+PY
+)
 echo "done."
