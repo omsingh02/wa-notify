@@ -1,0 +1,32 @@
+# wa-notify-server.service: local ingest server (Node + node:sqlite), listens on 127.0.0.1 only.
+#
+# Install:  cp deploy/systemd/* ~/.config/systemd/user/   (see deploy/README.md)
+# %h expands to your home directory.
+
+[Unit]
+Description=wa-notify local archive server (WhatsApp Web -> SQLite)
+After=network.target
+
+[Service]
+Type=simple
+# ADAPT: the local-server directory of your clone.
+WorkingDirectory=%h/dev/wa-notify/local-server
+# ADAPT: needs Node >= 22.13 (node:sqlite without flags). Check with `command -v node`.
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=2
+
+# Optional overrides, see docs/CONFIGURATION.md. Uncomment to use.
+#Environment=WA_NOTIFY_PORT=8765
+#Environment=WA_NOTIFY_DATA_DIR=%h/.local/share/wa-notify
+#Environment=WA_NOTIFY_CONFIG_DIR=%h/.config/wa-notify
+#Environment=WA_NOTIFY_EXTENSION_ID=
+#Environment=WA_NOTIFY_JSONL_BACKUP=1
+
+# The one hardening option that is always safe in a user unit. Stronger sandboxing (ProtectSystem=,
+# PrivateTmp=) is deliberately left out: it needs unprivileged user namespaces and breaks when the
+# data directory is moved, which makes it a poor default for a hobby setup.
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

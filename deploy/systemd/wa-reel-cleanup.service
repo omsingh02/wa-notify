@@ -1,0 +1,13 @@
+# wa-reel-cleanup.service: one-shot disk retention job, started by wa-reel-cleanup.timer.
+# Deletes cached media of reels that were opened more than N days ago, plus stale partial downloads.
+
+[Unit]
+Description=Clean old cached reel media (opened more than 7 days ago)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+# ADAPT: where you symlinked the tool. Run it once by hand with --dry-run to see what it would delete.
+ExecStart=%h/.local/bin/wa-reel-cleanup --days 7
+#Environment=WA_NOTIFY_DATA_DIR=%h/.local/share/wa-notify
+NoNewPrivileges=yes

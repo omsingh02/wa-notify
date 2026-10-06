@@ -1,0 +1,27 @@
+# wa-reel-alert.service: reel alert daemon + polite background fetch queue.
+#
+# It starts mpv, notify-send and wl-copy, so the systemd user manager must know your Wayland session.
+# If notifications or the player do not appear, run once per login (e.g. from your compositor's autostart):
+#   dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
+
+[Unit]
+Description=wa-notify reel alerts, fetch queue and floating player
+After=wa-notify-server.service graphical-session.target
+Wants=wa-notify-server.service
+
+[Service]
+Type=simple
+# ADAPT: where you symlinked the tool (see deploy/README.md).
+ExecStart=%h/.local/bin/wa-reel-alert
+Environment=PYTHONUNBUFFERED=1
+
+# Optional overrides, see docs/CONFIGURATION.md. Must match the server's values.
+#Environment=WA_NOTIFY_DATA_DIR=%h/.local/share/wa-notify
+#Environment=WA_NOTIFY_CONFIG_DIR=%h/.config/wa-notify
+
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

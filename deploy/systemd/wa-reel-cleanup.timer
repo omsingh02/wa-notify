@@ -1,0 +1,12 @@
+# wa-reel-cleanup.timer: runs wa-reel-cleanup.service once a day.
+# Persistent=true runs a missed job at the next boot or login (laptops are often off at midnight).
+
+[Unit]
+Description=Daily cleanup of old cached reel media
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target

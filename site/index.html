@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>wa-notify: personal WhatsApp Web archiver with Instagram reel alerts</title>
+  <meta name="description" content="Hobby project: a personal WhatsApp Web message archiver with Instagram reel alerts and a floating mpv player. Built for Linux, Wayland and Hyprland.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="canonical" href="https://wa-notify-beta.vercel.app">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="wa-notify">
+  <meta property="og:description" content="Hobby project: personal WhatsApp Web archiver with Instagram reel alerts and a floating mpv player.">
+  <meta property="og:url" content="https://wa-notify-beta.vercel.app">
+  <meta name="twitter:card" content="summary">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap bar">
+      <a class="brand" href="/">wa-notify</a>
+      <nav aria-label="Primary">
+        <ul>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#requirements">Requirements</a></li>
+          <li><a href="#limits">Limitations</a></li>
+          <li><a href="https://github.com/omsingh02/wa-notify">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero wrap" aria-labelledby="title">
+      <p class="tag">Hobby project</p>
+      <h1 id="title">A personal WhatsApp Web archiver that turns Instagram links into a floating reel player.</h1>
+      <p class="lead">wa-notify captures new WhatsApp Web messages into a local SQLite database, spots Instagram reel and post links, fetches them politely and opens them in a small floating mpv window.</p>
+      <p class="actions">
+        <a class="btn primary" href="https://github.com/omsingh02/wa-notify">View on GitHub</a>
+        <a class="btn" href="https://github.com/omsingh02/wa-notify/tree/main/docs">Read the docs</a>
+      </p>
+      <p class="note" role="note"><strong>Heads up:</strong> built and tested on one Linux machine (Arch, Wayland, Hyprland). It relies on private, undocumented WhatsApp Web internals and can break whenever WhatsApp ships an update. Support is best effort.</p>
+    </section>
+
+    <section id="how" class="wrap" aria-labelledby="how-h">
+      <h2 id="how-h">How it works</h2>
+      <ol class="flow">
+        <li>
+          <span class="step">1</span>
+          <h3>Capture</h3>
+          <p>A Manifest V3 browser extension hooks WhatsApp Web's in-page message store and queues each new message in the browser, so a restart does not lose it.</p>
+        </li>
+        <li>
+          <span class="step">2</span>
+          <h3>Archive</h3>
+          <p>A small Node server on <code>127.0.0.1</code> stores messages in SQLite, deduplicated by message id, and extracts Instagram reel and post links.</p>
+        </li>
+        <li>
+          <span class="step">3</span>
+          <h3>Watch</h3>
+          <p>Python tools alert you to fresh reels, fetch them one at a time with yt-dlp and open videos or photo posts in a floating mpv window.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="features" class="wrap" aria-labelledby="features-h">
+      <h2 id="features-h">Features</h2>
+      <ul class="cards">
+        <li><h3>Local-first archive</h3><p>SQLite in WAL mode. Nothing leaves your machine except what you explicitly enable.</p></li>
+        <li><h3>Live reel alerts</h3><p>Tells fresh messages from history loading, so scrolling an old chat does not flood you.</p></li>
+        <li><h3>Floating player</h3><p>Reels and photo posts (single images and carousels) open in one pinned window. The browser is a last resort.</p></li>
+        <li><h3>Polite fetch queue</h3><p>One request at a time, cool-downs after blocks, retries with backoff and per-reel locks.</p></li>
+        <li><h3>Optional Instagram session</h3><p>Re-uses your browser's existing login through yt-dlp when anonymous access is rate-limited. Opt-in.</p></li>
+        <li><h3>Optional AI summaries</h3><p>Short summaries through the Gemini API. This uploads the video to Google, so it stays off unless you set a key.</p></li>
+        <li><h3>Launcher and digest</h3><p>A fuzzel menu for quick picks and an fzf digest with a preview pane.</p></li>
+        <li><h3>Disk hygiene</h3><p>A daily timer removes cached media once a reel has been opened for a while.</p></li>
+      </ul>
+    </section>
+
+    <section id="requirements" class="wrap" aria-labelledby="req-h">
+      <h2 id="req-h">Requirements and platform dependence</h2>
+      <p>This is not a portable installer. Several parts assume a specific desktop, and the table says which.</p>
+      <div class="table-wrap">
+        <table>
+          <caption class="sr">What each part needs</caption>
+          <thead><tr><th scope="col">Part</th><th scope="col">Needs</th><th scope="col">Why it matters</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Capture</th><td>Chromium-based browser 111+, unpacked extension</td><td>Uses MAIN-world content scripts. Firefox is not supported.</td></tr>
+            <tr><th scope="row">Server</th><td>Node.js 22.13+</td><td>Uses the built-in <code>node:sqlite</code> module.</td></tr>
+            <tr><th scope="row">Reel tools</th><td>Linux, Python 3.11+, yt-dlp, mpv, ffmpeg</td><td>Paths follow the XDG layout under <code>~/.local</code> and <code>~/.config</code>.</td></tr>
+            <tr><th scope="row">Desktop</th><td>Wayland: fuzzel, foot, wl-clipboard, notify-send</td><td>Window rules and keybinds are shipped for Hyprland only.</td></tr>
+            <tr><th scope="row">Services</th><td>systemd user session</td><td>Unit files are reference examples, not an installer.</td></tr>
+            <tr><th scope="row">Optional</th><td>Gemini API key; python-secretstorage and a keyring</td><td>Summaries, and reading the browser's Instagram cookies.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="limits" class="wrap" aria-labelledby="limits-h">
+      <h2 id="limits-h">Limitations and legal notes</h2>
+      <ul class="plain">
+        <li>It hooks undocumented WhatsApp Web internals and <strong>will break without notice</strong>.</li>
+        <li>Automating WhatsApp Web likely <strong>violates WhatsApp's terms of service</strong>. Use it for yourself only and at your own risk.</li>
+        <li>The archive holds <strong>other people's messages</strong> and media metadata. It is not encrypted at rest. Treat it as sensitive.</li>
+        <li>The local server authenticates with a trust-on-first-use token and listens on loopback only. There is no multi-user model.</li>
+        <li>Instagram may rate-limit anonymous downloads. The optional login reuses your session and carries some account risk.</li>
+        <li>Some values are hard-coded (default port, window class and size, launcher font). Only part of them is configurable yet.</li>
+      </ul>
+      <p>The full lists live in <a href="https://github.com/omsingh02/wa-notify/blob/main/docs/LIMITATIONS.md">docs/LIMITATIONS.md</a> and <a href="https://github.com/omsingh02/wa-notify/blob/main/docs/KNOWN_ISSUES.md">docs/KNOWN_ISSUES.md</a>.</p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>wa-notify is released under the <a href="https://github.com/omsingh02/wa-notify/blob/main/LICENSE">MIT License</a>. Source on <a href="https://github.com/omsingh02/wa-notify">GitHub</a>.</p>
+      <p>Not affiliated with, endorsed by or connected to WhatsApp, Meta or Instagram. All trademarks belong to their owners.</p>
+    </div>
+  </footer>
+</body>
+</html>
