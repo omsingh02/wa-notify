@@ -187,6 +187,29 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   enqueue(msg.payload).then(flushQueue);
 });
 
+// Chrome does not re-inject declared content scripts into tabs that were already open when the extension is
+// installed or reloaded, and the old copy running there is orphaned (it can no longer reach this worker). Attach
+// a fresh relay to those tabs; content.js is safe to run twice. Only the relay is needed: injected.js keeps
+// running in the page and keeps dispatching events.
+const WHATSAPP_TABS = 'https://web.whatsapp.com/*';
+
+async function reattachRelays() {
+  const tabs = await chrome.tabs.query({ url: WHATSAPP_TABS });
+  for (const tab of tabs) {
+    try {
+      await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['src/content.js'] });
+    } catch (e) {
+      console.warn(TAG, `could not attach to WhatsApp tab ${tab.id} (reload the tab): ${e.message}`);
+    }
+  }
+}
+
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details && (details.reason === 'install' || details.reason === 'update')) {
+    reattachRelays().catch((e) => console.warn(TAG, 'reattaching to open tabs failed:', e.message));
+  }
+});
+
 // Backstop for a server that was down: retry every minute.
 chrome.alarms.create(FLUSH_ALARM, { periodInMinutes: FLUSH_PERIOD_MINUTES });
 chrome.alarms.onAlarm.addListener((alarm) => {

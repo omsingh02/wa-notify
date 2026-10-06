@@ -4,7 +4,7 @@
   "version": "0.2.0",
   "minimum_chrome_version": "111",
   "description": "Hobby project. Hooks WhatsApp Web's internal message store to capture new messages (incl. bursts, quoted replies, best-effort link-preview metadata) and relays them to a local server.",
-  "permissions": ["storage", "alarms", "unlimitedStorage"],
+  "permissions": ["storage", "alarms", "unlimitedStorage", "scripting"],
   "host_permissions": [
     "https://web.whatsapp.com/*",
     "http://127.0.0.1/*",

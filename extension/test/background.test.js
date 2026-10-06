@@ -7,6 +7,8 @@ const { load, delay, until } = require('./harness');
 
 const QUEUE_KEY = 'wa_notify_queue';
 const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
+// Values built inside the vm sandbox belong to another realm: compare plain copies, not the originals.
+const plain = clone;
 
 /**
  * A background.js instance running against a fake chrome.storage and a slow fake server.
@@ -19,8 +21,11 @@ function makeWorker(initial = {}) {
   const badge = [];
   const warnings = [];
   const counters = { fetches: 0, bytesWritten: 0 };
+  const injections = [];
+  const tabQueries = [];
   let onMessage;
   let onAlarm;
+  let onInstalled;
 
   const chrome = {
     storage: {
@@ -41,7 +46,24 @@ function makeWorker(initial = {}) {
       },
     },
     alarms: { create() {}, onAlarm: { addListener: (fn) => (onAlarm = fn) } },
-    runtime: { id: 'self-id', onMessage: { addListener: (fn) => (onMessage = fn) } },
+    runtime: {
+      id: 'self-id',
+      onMessage: { addListener: (fn) => (onMessage = fn) },
+      onInstalled: { addListener: (fn) => (onInstalled = fn) },
+    },
+    tabs: {
+      async query(q) {
+        tabQueries.push(q);
+        if (state.failQuery) throw new Error('tabs unavailable');
+        return state.tabs || [];
+      },
+    },
+    scripting: {
+      async executeScript(opts) {
+        if ((state.rejectTabs || []).includes(opts.target.tabId)) throw new Error('Cannot access contents of the page');
+        injections.push(opts);
+      },
+    },
     action: { setBadgeText: ({ text }) => badge.push(text), setBadgeBackgroundColor() {} },
   };
 
@@ -75,6 +97,9 @@ function makeWorker(initial = {}) {
     badge,
     warnings,
     counters,
+    injections,
+    tabQueries,
+    installed: (details) => onInstalled(details),
     send: (payload, sender = { id: 'self-id' }) => onMessage({ type: 'wa-notify-message', payload }, sender),
     rawMessage: (msg, sender) => onMessage(msg, sender),
     alarm: () => onAlarm({ name: 'wa-notify-flush' }),
@@ -180,4 +205,45 @@ test('the token is generated once and reused', async () => {
   w.send(entry(2, 10));
   await until(() => w.posted.length === 2);
   assert.equal(w.store.wa_notify_auth_token, token);
+});
+
+// ---- reattaching the relay after an extension install / reload --------------------------------
+
+test('installing or updating attaches a fresh relay to the WhatsApp tabs that are already open', async () => {
+  const w = makeWorker({ tabs: [{ id: 11 }, { id: 12 }] });
+  w.installed({ reason: 'update' });
+  await until(() => w.injections.length === 2);
+  assert.deepEqual(plain(w.tabQueries), [{ url: 'https://web.whatsapp.com/*' }]);
+  assert.deepEqual(
+    w.injections.map((i) => i.target.tabId),
+    [11, 12]
+  );
+  for (const i of w.injections) assert.deepEqual(plain(i.files), ['src/content.js'], 'only the relay, not injected.js');
+});
+
+test('browser and shared-module updates leave the tabs alone', async () => {
+  const w = makeWorker({ tabs: [{ id: 1 }] });
+  w.installed({ reason: 'chrome_update' });
+  w.installed({ reason: 'shared_module_update' });
+  await delay(50);
+  assert.equal(w.tabQueries.length, 0);
+  assert.equal(w.injections.length, 0);
+});
+
+test('one tab that cannot be injected does not stop the others, and is reported', async () => {
+  const w = makeWorker({ tabs: [{ id: 1 }, { id: 2 }, { id: 3 }], rejectTabs: [2] });
+  w.installed({ reason: 'install' });
+  await until(() => w.injections.length === 2);
+  assert.deepEqual(
+    w.injections.map((i) => i.target.tabId),
+    [1, 3]
+  );
+  assert.ok(w.warnings.some((m) => m.includes('tab 2') && m.includes('reload the tab')), w.warnings.join(' | '));
+});
+
+test('a failing tab query is reported, not thrown', async () => {
+  const w = makeWorker({ failQuery: true });
+  assert.doesNotThrow(() => w.installed({ reason: 'update' }));
+  await until(() => w.warnings.some((m) => m.includes('reattaching')));
+  assert.equal(w.injections.length, 0);
 });
