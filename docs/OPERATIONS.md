@@ -96,19 +96,32 @@ Sender names appear in the log under `LIVE REEL DETECTED`; scrub before sharing 
 
 ## Landing page (Vercel)
 
-`site/` is a static, dependency-free page (no build step, no scripts). It is deployed with the Vercel CLI:
+`site/` is a static, dependency-free page (no build step, no scripts). It is hosted on Vercel.
+
+**Git deploys.** The Vercel project is connected to this repository with the production branch `main` and *Root Directory*
+`site`. A push to `main` deploys the page to production; other branches and pull requests get preview deployments, which
+Vercel Authentication protects while the repository is private. Nothing in the extension, server or tools talks to the page.
+
+**CLI deploys** work too, but because the Root Directory is `site` they must run from the **repository root**. From `site/`
+Vercel fails with `The specified Root Directory "site" does not exist`.
 
 ```bash
-cd site
-vercel deploy --prod --yes     # first time: `vercel link --project <name>`; the CLI may need a retry on a flaky network
+vercel link --project <name>     # once, at the repository root; writes .vercel/ and .env.local, and may append to
+                                 # .gitignore (the patterns are already there: discard that change and delete .env.local)
+vercel deploy --prod --yes       # drop --prod for a preview; retry if the network is flaky
 ```
 
-The page is not tied to the application: nothing in the extension, server or tools talks to it.
+**Connecting a repository** (what was done here): authorize Vercel's GitHub app for the repository (a private repository is
+invisible to `vercel git connect` until you do), then in the dashboard open Project → Settings → Git and Settings → Build
+& Deployment, and set Root Directory to `site` **and save**. Check the result instead of trusting the form:
 
-**Git auto-deploy is not connected.** `vercel git connect <repo-url>` fails for a private repository until Vercel's GitHub app
-has been authorized for it (browser step: Vercel dashboard → Project → Settings → Git → Connect, then grant the app access
-to this repository). If you connect it, also set the project's *Root Directory* to `site`. From that moment run CLI deploys
-from the repository root instead of from `site/`, because Vercel applies the root directory relative to what you upload.
+```bash
+vercel api /v9/projects/<name> | grep -E '"rootDirectory"|"productionBranch"'
+vercel api /v9/projects/<name> -X PATCH -f rootDirectory=site     # if rootDirectory is null
+```
+
+A Git build with the Root Directory unset builds the repository root, which has no `index.html`, so the next push would replace
+a working page with a broken one.
 
 ## Troubleshooting playbook
 
