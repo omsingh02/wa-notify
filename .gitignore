@@ -1,0 +1,55 @@
+# --- Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+
+# --- Node
+node_modules/
+npm-debug.log*
+
+# --- Local data and secrets: never commit these
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.jsonl
+instagram-cookies.txt
+token.txt
+config.toml
+.secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Downloaded media and generated summaries
+reels/
+summaries/
+
+# --- Vercel
+.vercel/
+/site/.vercel
+
+# --- Editors and OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# --- Local-only leftovers from before the repo existed
+.backup-*/
+/wa_*_architecture.png
+/whatsapp_reel_system_bundle.txt

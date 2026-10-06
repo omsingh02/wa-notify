@@ -1,0 +1,30 @@
+[project]
+name = "wa-notify"
+version = "0.2.0"
+description = "Hobby project: personal WhatsApp Web archiver with Instagram reel alerts (Linux/Wayland tools)"
+readme = "README.md"
+requires-python = ">=3.11"  # tomllib
+license = { text = "MIT" }
+dependencies = ["yt-dlp"]
+
+[project.optional-dependencies]
+rich = ["rich"]  # nicer digest tables / previews (plain text without it)
+secretstorage = ["secretstorage"]  # lets yt-dlp unlock Chromium-based browsers' cookies from the GNOME keyring
+
+# The tools are scripts run in place from tools/ (symlinked into ~/.local/bin); this is not a distributable package.
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["tools", "tests"]
+
+[tool.ruff.lint]
+# Deliberately conservative: syntax errors + pyflakes (unused imports/names, undefined names).
+# Style-oriented sets (E, W, I, B, UP, SIM) were not run against this code yet; enable them one at a time
+# (`ruff check --select I --fix`, ...) rather than all at once. Note: the code is not ruff-formatted,
+# so don't enforce `ruff format --check` until `ruff format` has been applied once.
+select = ["E9", "F"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q -p no:cacheprovider"

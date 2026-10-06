@@ -1,0 +1,9 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+
+# Keep language statistics about the actual code
+docs/** linguist-documentation
+site/** linguist-documentation
