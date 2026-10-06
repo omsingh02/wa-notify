@@ -1,0 +1,33 @@
+# wa-notify tools — example ~/.config/wa-notify/config.toml
+# Copy to <config dir>/config.toml (config dir = $WA_NOTIFY_CONFIG_DIR, default ~/.config/wa-notify) and edit.
+# Every key is optional; the values below are the defaults. A missing or wrongly-typed value falls back to
+# its default with a one-time warning on stderr. Environment: WA_NOTIFY_DATA_DIR (default
+# ~/.local/share/wa-notify) and WA_NOTIFY_CONFIG_DIR.
+#
+# Hobby-project note: the [ui] defaults describe the author's Hyprland + foot + fuzzel + mako desktop.
+# The launcher's command-line flags (--dmenu --index -f -w -l --match-mode) and the foot-style terminal
+# arguments are not abstracted: another launcher/terminal needs a compatible CLI (see docs/LIMITATIONS.md).
+
+[ui]
+app_id = "wa-reel"                 # mpv Wayland app id AND window title; compositor window rules match it
+player_size = "420x750"            # mpv --autofit
+launcher = "fuzzel"                # dmenu-style picker
+launcher_font = "JetBrains Mono NF:size=12"
+launcher_width = 125               # characters
+launcher_max_lines = 14
+terminal = ["footclient", "-a", "wa-reel-digest"]           # opens the digest in a floating terminal
+terminal_fallback = ["foot", "-a", "wa-reel-digest"]        # used when the first one can't start
+notify_app_name = "wa-reels"       # notify-send -a ; mako sections match it
+
+[ai]
+models = ["gemini-3.5-flash", "gemini-3.5-flash-lite"]      # tried in order
+secrets_file = "~/.config/.secrets"                         # shell-style KEY=VALUE lines; env vars win
+max_inline_mb = 18                 # larger videos are downscaled with ffmpeg first
+clip_seconds = 90                  # ...and cut to this length
+
+# Optional: reuse the browser's Instagram login so yt-dlp isn't rate-limited (see wa_reel_auth.py).
+# [instagram]
+# browser = "brave"
+# profile = "~/.config/BraveSoftware/Brave-Origin/Default"   # profile directory; use an absolute path
+# keyring = "GNOMEKEYRING"         # Chromium-based browsers on Linux; needs the python-secretstorage package
+# refresh_hours = 6

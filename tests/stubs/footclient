@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+"""Fake external tool: records how it was called (tests read $STUB_LOG) and does nothing else."""
+import json, os, sys
+open(os.environ["STUB_LOG"], "a").write(json.dumps({"tool": os.path.basename(sys.argv[0]), "argv": sys.argv[1:]}) + "\n")

@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+# Fake yt-dlp. Behaviour comes from the file named by $FAKE_MODE_FILE so tests can change it between calls.
+import os, sys, json, time
+args = sys.argv[1:]
+_mf = os.environ['FAKE_MODE_FILE']; _modes = open(_mf).read().strip().split(',')
+mode = _modes[0]
+if len(_modes) > 1: open(_mf, 'w').write(','.join(_modes[1:]))
+cookies = args[args.index('--cookies') + 1] if '--cookies' in args else None
+info = None
+if cookies:
+    st = os.stat(cookies); info = {'mode': oct(st.st_mode & 0o777), 'has_session': 'SECRETSESSIONVALUE' in open(cookies).read()}
+is_json = '-J' in args
+open(os.environ['STUB_LOG'], 'a').write(json.dumps({'tool': 'yt-dlp', 'argv': args, 'cookies': bool(cookies), 'cookie_info': info, 'json': is_json, 'mode': mode}) + '\n')
+port = os.environ.get('IMG_PORT', '0')
+if mode == 'blocked':
+    print("ERROR: [Instagram] DeGbwqKxT2f: The webpage request was redirected to the login page. You have exceeded the rate-limit for accessing posts anonymously. Use --cookies-from-browser or --cookies for the authentication.", file=sys.stderr); sys.exit(1)
+if mode == 'ok':
+    time.sleep(float(os.environ.get('FAKE_DELAY', '0')))
+    out = args[args.index('-o') + 1].replace('%(ext)s', 'mp4'); open(out, 'wb').write(b'0' * 20000); sys.exit(0)
+if mode == 'photo_empty':
+    if not is_json:
+        print('ERROR: [Instagram] X: There is no video in this post', file=sys.stderr); sys.exit(1)
+    print(json.dumps({'formats': [], 'thumbnails': []})); sys.exit(0)
+if mode in ('photo', 'carousel', 'carousel_bad'):
+    if not is_json:
+        msg = "There is no video in this post" if mode == 'photo' else "No video formats found!; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues"
+        print(f"ERROR: [Instagram] X: {msg}", file=sys.stderr); sys.exit(1)
+    def img(n):
+        if mode == 'carousel_bad' and n == 2: return {'formats': [], 'thumbnails': [{'url': f'http://127.0.0.1:{port}/missing.jpg', 'width': 1080, 'height': 1080}]}
+        return {'formats': [], 'thumbnails': [{'url': f'http://127.0.0.1:{port}/img{n}_small.jpg', 'width': 150, 'height': 150}, {'url': f'http://127.0.0.1:{port}/img{n}_big.jpg', 'width': 1080, 'height': 1080}]}
+    print(json.dumps(img(1) if mode == 'photo' else {'_type': 'playlist', 'entries': [img(1), img(2), img(3)]})); sys.exit(0)
+if mode == 'netdown':
+    print('ERROR: [Instagram] DeB48_qJGqk: Video info extraction failed: Failed to perform, curl: (28) Resolving timed out after 15002 milliseconds. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.', file=sys.stderr); sys.exit(1)
+if mode == 'photo_dead':
+    if not is_json:
+        print('ERROR: [Instagram] X: There is no video in this post', file=sys.stderr); sys.exit(1)
+    print(json.dumps({'formats': [], 'thumbnails': [{'url': 'http://127.0.0.1:9/x.jpg', 'width': 1080, 'height': 1080}]})); sys.exit(0)
+if mode == 'private':
+    print("ERROR: [Instagram] X: This content isn't available to everyone: It can't be seen by certain audiences.", file=sys.stderr); sys.exit(1)
+if mode == 'hang':
+    time.sleep(60)
