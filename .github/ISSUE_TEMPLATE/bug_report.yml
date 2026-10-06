@@ -1,0 +1,74 @@
+name: Bug report
+description: Something is broken (extension, server, reel tools or deploy files)
+title: "bug: "
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is a **hobby project** maintained on a best-effort basis, built around one person's Linux/Wayland setup.
+        Reports that name the platform precisely are the ones I can act on.
+
+        **Never paste chat content, phone numbers or JIDs (`...@c.us`, `...@g.us`), the pairing token, cookies or API keys.**
+        Redact logs before posting.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Browser extension (capture / queue)
+        - Local server (ingest / SQLite)
+        - Reel tools (menu / digest / player)
+        - Alert daemon / fetch queue (yt-dlp)
+        - Instagram session (cookies)
+        - Deploy files (systemd / Hyprland / mako)
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release tag or commit hash (`git rev-parse --short HEAD`).
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Distro, compositor and version, browser and version, Node, Python, yt-dlp, mpv.
+      placeholder: |
+        OS: Arch Linux
+        Compositor: Hyprland 0.5x
+        Browser: Chromium / Brave 1xx
+        Node: 22.x   Python: 3.1x   yt-dlp: 20xx.xx.xx   mpv: 0.4x
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (redacted)
+      description: "`journalctl --user -u wa-reel-alert` / `-u wa-notify-server`, or the browser's service-worker console."
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed chat content, JIDs, tokens and cookies from everything I pasted.
+          required: true
+        - label: I read docs/LIMITATIONS.md and this is not a documented limitation.
+          required: true

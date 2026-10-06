@@ -1,0 +1,69 @@
+# Label set for this repository. Apply with, for example:
+#   gh label create "<name>" --color "<color>" --description "<description>" --force
+# (colors are hex without the leading #)
+- name: bug
+  color: d73a4a
+  description: Something is not working
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+- name: documentation
+  color: 0075ca
+  description: Improvements or additions to documentation
+- name: security
+  color: b60205
+  description: Security-related change or report
+- name: breaking
+  color: e11d21
+  description: Breaking change (protocol, schema or config)
+- name: chore
+  color: ededed
+  description: Maintenance that does not change behaviour
+- name: refactor
+  color: cfd3d7
+  description: Code restructuring without behaviour change
+- name: ci
+  color: 5319e7
+  description: CI and GitHub configuration
+- name: dependencies
+  color: 0366d6
+  description: Dependency updates
+- name: python
+  color: 3572a5
+  description: Python tools
+- name: component:extension
+  color: fbca04
+  description: Browser extension
+- name: component:server
+  color: fbca04
+  description: Local ingest server
+- name: component:tools
+  color: fbca04
+  description: Reel tools (menu, digest, alert, fetch queue)
+- name: component:deploy
+  color: fbca04
+  description: systemd, Hyprland and mako reference files
+- name: platform:wayland
+  color: 0e8a16
+  description: Wayland / Hyprland specific
+- name: needs-triage
+  color: ffffff
+  description: Not looked at yet
+- name: help wanted
+  color: 008672
+  description: Extra attention is welcome
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers
+- name: question
+  color: d876e3
+  description: Further information is requested
+- name: wontfix
+  color: ffffff
+  description: Out of scope for this hobby project
+- name: duplicate
+  color: cfd3d7
+  description: This already exists
+- name: skip-changelog
+  color: ededed
+  description: Leave out of generated release notes

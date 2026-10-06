@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/omsingh02/wa-notify/security/advisories/new
+    about: Please report vulnerabilities privately here instead of opening a public issue.
+  - name: Read the documented limitations first
+    url: https://github.com/omsingh02/wa-notify/blob/main/docs/LIMITATIONS.md
+    about: Platform dependence, hard-coded values and known issues are listed here.

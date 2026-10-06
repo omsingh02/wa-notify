@@ -1,0 +1,30 @@
+version: 2
+
+# local-server/ has no npm dependencies on purpose (it uses node:sqlite), so there is no npm ecosystem entry.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "ci"
+      include: scope
+    labels: [dependencies, ci]
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+      include: scope
+    labels: [dependencies, python]
+    groups:
+      python-dependencies:
+        patterns: ["*"]

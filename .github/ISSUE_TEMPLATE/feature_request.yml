@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest an improvement or ask for support for another setup
+title: "feat: "
+labels: [enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is a **hobby project** with a deliberately narrow scope (personal archive + reel viewer on Linux/Wayland).
+        Ideas that make it less platform-specific are very welcome; large new scope may be declined.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Portability (other OS / compositor / browser)
+        - Browser extension
+        - Local server
+        - Reel tools
+        - Configuration
+        - Docs
+        - Other
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to open a pull request for this.
