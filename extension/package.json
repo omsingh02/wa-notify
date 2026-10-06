@@ -1,0 +1,18 @@
+{
+  "name": "wa-notify-extension",
+  "version": "0.2.0",
+  "description": "Tests for the wa-notify browser extension (the extension itself needs no build step: load this folder unpacked).",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "check": "node --check src/background.js && node --check src/content.js && node --check src/injected.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omsingh02/wa-notify.git"
+  },
+  "license": "MIT",
+  "private": true
+}

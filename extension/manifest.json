@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "wa-notify — WhatsApp Web personal archiver",
+  "version": "0.2.0",
+  "minimum_chrome_version": "111",
+  "description": "Hobby project. Hooks WhatsApp Web's internal message store to capture new messages (incl. bursts, quoted replies, best-effort link-preview metadata) and relays them to a local server.",
+  "permissions": ["storage", "alarms", "unlimitedStorage"],
+  "host_permissions": [
+    "https://web.whatsapp.com/*",
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "action": {
+    "default_title": "wa-notify"
+  },
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["src/injected.js"],
+      "world": "MAIN",
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["src/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
