@@ -8,12 +8,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ### Added
 - Extension: on install/update a fresh relay is attached to the WhatsApp Web tabs that are already open, so reloading the extension no longer needs a tab refresh to keep capturing (new `scripting` permission).
 - `wa-reel-dl` and `wa-reel-summary` accept `--help`; flags may come before the reel id.
-- Landing page: Vercel Git deploys from `main` (Root Directory `site`, builds skipped when `site/` did not change).
+- Landing page: Vercel Git deploys from `main` (Root Directory `site`). `ignoreCommand` in `site/vercel.json` skips the deployment of a commit that leaves `site/` unchanged; it builds whenever it is unsure (`tests/test_vercel_ignore.py`).
+- `scripts/github/apply-settings.sh` creates the labels from `.github/labels.yml`, now the single source: Dependabot, the issue forms and the release-notes categories referred to labels (`ci`, `python`, `needs-triage`, `chore`, …) that the script never created.
 
 ### Fixed
 - Extension: an orphaned content script ("Extension context invalidated") stops with one warning instead of throwing on every message.
 - `[instagram] profile` accepts `~` (yt-dlp does not expand it).
-- Docs: removed figures taken from the author's private archive.
+- The Instagram-only cookie copy no longer accepts look-alike domains such as `notinstagram.com`; only `instagram.com` and its subdomains are copied (CodeQL `py/incomplete-url-substring-sanitization`).
+- Docs: removed figures taken from the author's private archive; a known-issues table row that GitHub rendered without its fix and test column.
 
 ### Changed
 - CI enforces `ruff format --check .` in addition to `ruff check .`; the Node tests run as `node --test "extension/test/*.test.js" "local-server/test/*.test.js"` (Node 22 rejects directory arguments).
